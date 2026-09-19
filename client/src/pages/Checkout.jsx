@@ -1,0 +1,77 @@
+import { useState } from "react";
+import { ChevronLeft, Building2, Truck, Landmark, CreditCard } from "lucide-react";
+import { styles } from "../styles/styles";
+import { fmt } from "../data/data";
+import { AuthField } from "../components/AuthShell";
+import PayOption from "../components/PayOption";
+
+export default function Checkout({ items, total, hasQuoteOnly, onBack, onSubmit }) {
+  const [form, setForm] = useState({
+    entreprise: "", nif: "", contact: "", telephone: "", wilaya: "", adresse: "", paiement: "virement",
+  });
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const isValid = form.entreprise && form.contact && form.telephone && form.wilaya && form.adresse;
+
+  return (
+    <main style={styles.checkoutWrap}>
+      <button style={styles.backBtn} onClick={onBack}><ChevronLeft size={16} /> Retour au catalogue</button>
+
+      <div style={styles.checkoutGrid} className="checkout-grid">
+        <div>
+          <h2 style={styles.sectionTitle}>Informations client</h2>
+          <AuthField icon={<Building2 size={16} />} label="Entreprise / organisme">
+            <input style={styles.input} value={form.entreprise} onChange={set("entreprise")} placeholder="Raison sociale" />
+          </AuthField>
+          <div className="field-row" style={styles.fieldRow}>
+            <AuthField label="NIF (optionnel)">
+              <input style={styles.input} value={form.nif} onChange={set("nif")} placeholder="N° d'identification fiscale" />
+            </AuthField>
+            <AuthField label="Personne à contacter">
+              <input style={styles.input} value={form.contact} onChange={set("contact")} placeholder="Nom et prénom" />
+            </AuthField>
+          </div>
+          <div className="field-row" style={styles.fieldRow}>
+            <AuthField label="Téléphone">
+              <input style={styles.input} value={form.telephone} onChange={set("telephone")} placeholder="0X XX XX XX XX" />
+            </AuthField>
+            <AuthField label="Wilaya">
+              <input style={styles.input} value={form.wilaya} onChange={set("wilaya")} placeholder="Ex : Alger" />
+            </AuthField>
+          </div>
+          <AuthField icon={<Truck size={16} />} label="Adresse de livraison / du chantier">
+            <textarea style={styles.textarea} value={form.adresse} onChange={set("adresse")} placeholder="Adresse complète" />
+          </AuthField>
+
+          <h2 style={styles.sectionTitle}>Mode de paiement</h2>
+          <div className="pay-row" style={styles.payRow}>
+            <PayOption icon={<Landmark size={18} />} label="Virement bancaire" sub="Facture pro forma envoyée sous 24h" active={form.paiement === "virement"} onClick={() => setForm((f) => ({ ...f, paiement: "virement" }))} />
+            <PayOption icon={<CreditCard size={18} />} label="Carte CIB / Edahabia" sub="Paiement sécurisé en ligne" active={form.paiement === "carte"} onClick={() => setForm((f) => ({ ...f, paiement: "carte" }))} />
+          </div>
+          {hasQuoteOnly && (
+            <p style={styles.noteBox}>
+              Un ou plusieurs articles de votre commande sont « sur devis ». Un chargé d'affaires DIVINDUS vous contactera pour confirmer le prix final avant tout paiement.
+            </p>
+          )}
+        </div>
+
+        <aside style={styles.summaryCard}>
+          <h3 style={styles.summaryTitle}>Récapitulatif</h3>
+          {items.map((i) => (
+            <div key={i.id} style={styles.summaryRow}>
+              <span>{i.qty} × {i.name}</span>
+              <span>{i.price ? fmt(i.price * i.qty) : "Devis"}</span>
+            </div>
+          ))}
+          <div style={styles.summaryDivider} />
+          <div style={styles.summaryTotalRow}>
+            <span>Total estimé</span>
+            <span>{fmt(total)}</span>
+          </div>
+          <button style={{ ...styles.primaryBtn, width: "100%", opacity: isValid ? 1 : 0.5 }} disabled={!isValid} onClick={() => onSubmit(form)}>
+            Confirmer la commande
+          </button>
+        </aside>
+      </div>
+    </main>
+  );
+}

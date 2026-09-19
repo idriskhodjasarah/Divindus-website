@@ -1,0 +1,43 @@
+import { useState } from "react";
+import { ShieldCheck } from "lucide-react";
+import { styles } from "../styles/styles";
+import { AuthShell } from "../components/AuthShell";
+
+export default function Verify({ pending, onVerified, onBack }) {
+  const [code, setCode] = useState("");
+  const [resent, setResent] = useState(false);
+  const method = pending?.method === "sms" ? "SMS" : "email";
+  const contact = pending?.contact || "vos coordonnées";
+
+  return (
+    <AuthShell onBack={onBack}>
+      <div style={styles.verifyIcon}>
+        <ShieldCheck size={24} />
+      </div>
+      <h2 style={styles.authTitle}>Vérification</h2>
+      <p style={styles.authSub}>
+        Un code à 6 chiffres a été envoyé par {method} à <strong>{contact}</strong>.
+      </p>
+
+      <input
+        style={styles.codeInput}
+        maxLength={6}
+        placeholder="——————"
+        value={code}
+        onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+      />
+
+      <button
+        style={{ ...styles.primaryBtn, width: "100%", marginTop: 18, opacity: code.length === 6 ? 1 : 0.5 }}
+        disabled={code.length !== 6}
+        onClick={onVerified}
+      >
+        Vérifier et continuer
+      </button>
+
+      <button style={styles.linkBtn} onClick={() => setResent(true)}>
+        {resent ? "Code renvoyé ✓" : "Renvoyer le code"}
+      </button>
+    </AuthShell>
+  );
+}

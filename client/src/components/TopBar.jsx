@@ -1,0 +1,41 @@
+import { User, ClipboardList, LogOut, Bell, ShoppingCart } from "lucide-react";
+import { styles } from "../styles/styles";
+import logo from "../assets/logo.png";
+
+export default function TopBar({ cartCount, unread, ordersCount, profile, onCartClick, onNotifClick, onOrdersClick, onAccountClick, onLogoClick, onLogout }) {
+  const initials = ((profile?.prenom?.[0] || "") + (profile?.nom?.[0] || "")).toUpperCase();
+
+  return (
+    <header style={styles.topbar}>
+      <div style={styles.topbarInner} className="responsive-header">
+        <button style={{ ...styles.logoBtn, flex: 1 }} onClick={onLogoClick}>
+          <img src={logo} alt="DIVINDUS" style={{ height: 42 }} />
+        </button>
+        <button style={styles.avatarBtn} onClick={onAccountClick} title="Mon compte">
+          {profile?.photo ? (
+            <img src={profile.photo} alt="" style={styles.avatarBtnImg} />
+          ) : initials ? (
+            <span style={styles.avatarBtnInitials}>{initials}</span>
+          ) : (
+            <User size={16} strokeWidth={1.75} />
+          )}
+        </button>
+        <button style={styles.cartBtn} onClick={onOrdersClick} title="Mes commandes">
+          <ClipboardList size={20} strokeWidth={1.75} />
+          {ordersCount > 0 && <span style={styles.cartBadge}>{ordersCount}</span>}
+        </button>
+        <button style={styles.iconBtnDark} onClick={onLogout} title="Déconnexion">
+          <LogOut size={18} strokeWidth={1.75} />
+        </button>
+        <button style={styles.cartBtn} onClick={onNotifClick}>
+          <Bell size={20} strokeWidth={1.75} />
+          {unread > 0 && <span style={styles.cartBadge}>{unread}</span>}
+        </button>
+        <button style={styles.cartBtn} onClick={onCartClick}>
+          <ShoppingCart size={20} strokeWidth={1.75} />
+          {cartCount > 0 && <span style={styles.cartBadge}>{cartCount}</span>}
+        </button>
+      </div>
+    </header>
+  );
+}

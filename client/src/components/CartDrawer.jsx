@@ -1,0 +1,51 @@
+import { X, Minus, Plus } from "lucide-react";
+import { styles } from "../styles/styles";
+import { fmt } from "../data/data";
+
+export default function CartDrawer({ items, total, onClose, onChangeQty, onCheckout }) {
+  return (
+    <div style={styles.drawerOverlay} onClick={onClose}>
+      <div style={styles.drawer} onClick={(e) => e.stopPropagation()}>
+        <div style={styles.drawerHead}>
+          <h2 style={styles.drawerTitle}>Votre commande</h2>
+          <button style={styles.iconBtn} onClick={onClose}><X size={20} /></button>
+        </div>
+
+        {items.length === 0 ? (
+          <p style={styles.drawerEmpty}>Votre panier est vide pour le moment.</p>
+        ) : (
+          <div style={styles.drawerList}>
+            {items.map((i) => (
+              <div key={i.id} style={styles.drawerRow}>
+                <div>
+                  <div style={styles.drawerRowName}>{i.name}</div>
+                  <div style={styles.drawerRowMeta}>{i.price ? fmt(i.price) : "Sur devis"} · {i.unit}</div>
+                </div>
+                <div style={styles.qtyStepper}>
+                  <button style={styles.qtyBtn} onClick={() => onChangeQty(i.id, -1)}><Minus size={14} /></button>
+                  <span style={styles.qtyValue}>{i.qty}</span>
+                  <button style={styles.qtyBtn} onClick={() => onChangeQty(i.id, 1)}><Plus size={14} /></button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={styles.drawerFoot}>
+          <div style={styles.drawerTotalRow}>
+            <span>Total estimé</span>
+            <span style={styles.drawerTotalValue}>{fmt(total)}</span>
+          </div>
+          <button
+            style={{ ...styles.primaryBtn, opacity: items.length === 0 ? 0.5 : 1, cursor: items.length === 0 ? "not-allowed" : "pointer" }}
+            disabled={items.length === 0}
+            onClick={onCheckout}
+          >
+            Passer la commande
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+

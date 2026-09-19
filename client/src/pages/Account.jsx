@@ -1,0 +1,96 @@
+import { useState, useRef } from "react";
+import { ChevronLeft, Camera, User, Phone, Mail, MapPin } from "lucide-react";
+import { styles, color } from "../styles/styles";
+import { AuthField } from "../components/AuthShell";
+
+export default function Account({ profile, onSave, onBack }) {
+  const [form, setForm] = useState(profile);
+  const [saved, setSaved] = useState(false);
+  const fileInputRef = useRef(null);
+  const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setSaved(false); };
+
+  const initials = ((form.prenom?.[0] || "") + (form.nom?.[0] || "")).toUpperCase() || "?";
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((f) => ({ ...f, photo: reader.result }));
+      setSaved(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  return (
+    <main style={styles.accountWrap}>
+      <button style={styles.backBtn} onClick={onBack}><ChevronLeft size={16} /> Retour au catalogue</button>
+      <h2 style={styles.sectionTitle}>Mon compte</h2>
+      <p style={{ fontSize: 13.5, color: color.inkSoft, marginBottom: 24 }}>
+        Ces informations peuvent être pré-remplies automatiquement lors de vos prochaines commandes.
+      </p>
+
+      <div style={styles.avatarRow}>
+        <div style={styles.avatarCircle}>
+          {form.photo ? (
+            <img src={form.photo} alt="Photo de profil" style={styles.avatarImg} />
+          ) : (
+            <span style={styles.avatarInitials}>{initials}</span>
+          )}
+        </div>
+        <div>
+          <button style={styles.secondaryBtn} onClick={() => fileInputRef.current?.click()}>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <Camera size={15} /> {form.photo ? "Changer la photo" : "Ajouter une photo"}
+            </span>
+          </button>
+          {form.photo && (
+            <button style={styles.linkBtnSmall} onClick={() => setForm((f) => ({ ...f, photo: null }))}>
+              Supprimer la photo
+            </button>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={handlePhotoChange}
+          />
+          <p style={styles.avatarNote}>
+            Visible uniquement par le livreur, pour vous identifier lors de la remise de votre colis.
+          </p>
+        </div>
+      </div>
+
+      <div className="field-row" style={styles.fieldRow}>
+        <AuthField icon={<User size={16} />} label="Prénom">
+          <input style={styles.input} value={form.prenom} onChange={set("prenom")} />
+        </AuthField>
+        <AuthField icon={<User size={16} />} label="Nom">
+          <input style={styles.input} value={form.nom} onChange={set("nom")} />
+        </AuthField>
+      </div>
+
+      <div className="field-row" style={styles.fieldRow}>
+        <AuthField icon={<Phone size={16} />} label="Téléphone">
+          <input style={styles.input} value={form.telephone} onChange={set("telephone")} />
+        </AuthField>
+        <AuthField icon={<Mail size={16} />} label="Adresse email">
+          <input style={styles.input} type="email" value={form.email} onChange={set("email")} />
+        </AuthField>
+      </div>
+
+      <AuthField icon={<MapPin size={16} />} label="Adresse par défaut">
+        <input style={styles.input} value={form.adresse} onChange={set("adresse")} />
+      </AuthField>
+
+      {saved && <p style={{ fontSize: 12.5, color: color.rust, marginBottom: 12 }}>Informations enregistrées.</p>}
+
+      <button style={styles.primaryBtn} onClick={() => { onSave(form); setSaved(true); }}>
+        Enregistrer les modifications
+      </button>
+    </main>
+  );
+}
+

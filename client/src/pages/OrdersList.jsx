@@ -1,0 +1,93 @@
+import { PackageCheck } from "lucide-react";
+import { styles, color } from "../styles/styles";
+import { fmt } from "../data/data";
+
+export default function OrdersList({ orders, onAdvance, onConfirmReception, onCancel, onCompleteRefund, onShopMore }) {
+  const dateFmt = (d) =>
+    new Date(d).toLocaleDateString("fr-DZ", { day: "2-digit", month: "short", year: "numeric" });
+
+  return (
+    <main style={styles.ordersWrap}>
+      <h2 style={styles.sectionTitle}>Mes commandes</h2>
+
+      {orders.length === 0 ? (
+        <div style={styles.ordersEmpty}>
+          <p style={{ marginBottom: 16 }}>Vous n'avez pas encore passé de commande.</p>
+          <button style={styles.primaryBtn} onClick={onShopMore}>Parcourir le catalogue</button>
+        </div>
+      ) : (
+        <div style={styles.ordersList}>
+          {orders.map((o) => {
+            const arrived = o.statusIndex === 1;
+            const refundPending = o.refundStatus === "en_cours";
+            const cancellable = !o.cancelled && !o.received && !arrived && !refundPending;
+            const status = o.cancelled
+              ? "Annulée"
+              : refundPending
+              ? "Annulation en cours"
+              : o.received
+              ? "Réceptionnée"
+              : arrived
+              ? "Arrivée — à confirmer"
+              : "Confirmée";
+            return (
+              <div key={o.id} style={{ ...styles.orderCard, ...(o.cancelled ? styles.orderCardCancelled : {}) }}>
+                <div style={styles.orderCardTop}>
+                  <div>
+                    <div style={styles.orderCardRef}>{o.ref}</div>
+                    <div style={styles.orderCardDate}>{dateFmt(o.placedAt)} · {o.items.length} article{o.items.length > 1 ? "s" : ""}</div>
+                  </div>
+                  <div style={{ ...styles.orderStatusBadge, ...(o.received ? styles.orderStatusBadgeDone : {}), ...(o.cancelled || refundPending ? styles.orderStatusBadgeCancelled : {}) }}>
+                    {status}
+                  </div>
+                </div>
+                <div style={styles.orderCardItems}>
+                  {o.items.slice(0, 2).map((i) => (
+                    <span key={i.id} style={styles.orderCardItemLine}>{i.qty} × {i.name}</span>
+                  ))}
+                  {o.items.length > 2 && <span style={styles.orderCardItemLine}>+ {o.items.length - 2} autre(s)</span>}
+                </div>
+
+                {refundPending && (
+                  <p style={styles.refundNote}>
+                    Paiement par carte déjà prélevé — remboursement en cours de traitement (5 à 7 jours ouvrés).
+                  </p>
+                )}
+
+                <div style={styles.orderCardFoot}>
+                  <span style={styles.orderCardTotal}>{fmt(o.total)}</span>
+                  {o.cancelled ? (
+                    <span style={styles.orderCancelledTag}>
+                      {o.refundStatus === "remboursee" ? "Remboursée" : "Commande annulée"}
+                    </span>
+                  ) : refundPending ? (
+                    <button style={styles.demoBtn} onClick={() => onCompleteRefund(o.id)}>
+                      Aperçu démo — marquer comme remboursée
+                    </button>
+                  ) : o.received ? (
+                    <span style={styles.orderReceivedTag}><PackageCheck size={15} /> Réception confirmée</span>
+                  ) : arrived ? (
+                    <button style={styles.btnDarkSmall} onClick={() => onConfirmReception(o.id)}>
+                      J'ai bien reçu ma commande
+                    </button>
+                  ) : (
+                    <button style={styles.demoBtn} onClick={() => onAdvance(o.id)}>
+                      Aperçu démo — marquer comme arrivée
+                    </button>
+                  )}
+                </div>
+                {cancellable && (
+                  <div style={styles.orderCardEditRow}>
+                    <button style={{ ...styles.linkBtnSmall, color: color.rust }} onClick={() => onCancel(o.id)}>
+                      Annuler la commande
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </main>
+  );
+}

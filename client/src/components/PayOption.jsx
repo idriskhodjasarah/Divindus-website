@@ -1,0 +1,13 @@
+import { styles } from "../styles/styles";
+
+export default function PayOption({ icon, label, sub, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{ ...styles.payOption, ...(active ? styles.payOptionActive : {}) }}>
+      <div style={styles.payOptionIcon}>{icon}</div>
+      <div>
+        <div style={styles.payOptionLabel}>{label}</div>
+        <div style={styles.payOptionSub}>{sub}</div>
+      </div>
+    </button>
+  );
+}

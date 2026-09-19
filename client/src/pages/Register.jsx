@@ -1,0 +1,116 @@
+import { useState } from "react";
+import { User, Phone, Mail, MapPin, Lock } from "lucide-react";
+import { styles } from "../styles/styles";
+import { AuthShell, AuthField } from "../components/AuthShell";
+
+export default function Register({ onSubmit, onBack }) {
+  const [form, setForm] = useState({
+    prenom: "",
+    nom: "",
+    telephone: "",
+    email: "",
+    adresse: "",
+    password: "",
+    confirm: "",
+    method: "email",
+  });
+  const [error, setError] = useState("");
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const isValid =
+    form.prenom && form.nom && form.telephone && form.email && form.adresse && form.password;
+
+  const submit = () => {
+    if (!isValid) {
+      setError("Merci de remplir tous les champs.");
+      return;
+    }
+    if (form.password !== form.confirm) {
+      setError("Les mots de passe ne correspondent pas.");
+      return;
+    }
+    setError("");
+    onSubmit({
+      method: form.method,
+      contact: form.method === "email" ? form.email : form.telephone,
+      profile: {
+        prenom: form.prenom,
+        nom: form.nom,
+        email: form.email,
+        telephone: form.telephone,
+        adresse: form.adresse,
+      },
+    });
+  };
+
+  return (
+    <AuthShell onBack={onBack} wide>
+      <h2 style={styles.authTitle}>Créer un compte</h2>
+      <p style={styles.authSub}>
+        Renseignez vos informations pour commander sur la plateforme DIVINDUS.
+      </p>
+
+      <div className="field-row" style={styles.fieldRow}>
+        <AuthField icon={<User size={16} />} label="Prénom">
+          <input style={styles.input} value={form.prenom} onChange={set("prenom")} />
+        </AuthField>
+        <AuthField icon={<User size={16} />} label="Nom">
+          <input style={styles.input} value={form.nom} onChange={set("nom")} />
+        </AuthField>
+      </div>
+
+      <div className="field-row" style={styles.fieldRow}>
+        <AuthField icon={<Phone size={16} />} label="Téléphone">
+          <input style={styles.input} value={form.telephone} onChange={set("telephone")} placeholder="0X XX XX XX XX" />
+        </AuthField>
+        <AuthField icon={<Mail size={16} />} label="Adresse email">
+          <input style={styles.input} type="email" value={form.email} onChange={set("email")} />
+        </AuthField>
+      </div>
+
+      <AuthField icon={<MapPin size={16} />} label="Adresse">
+        <input style={styles.input} value={form.adresse} onChange={set("adresse")} placeholder="Adresse, wilaya" />
+      </AuthField>
+
+      <div className="field-row" style={styles.fieldRow}>
+        <AuthField icon={<Lock size={16} />} label="Mot de passe">
+          <input style={styles.input} type="password" value={form.password} onChange={set("password")} />
+        </AuthField>
+        <AuthField icon={<Lock size={16} />} label="Confirmer le mot de passe">
+          <input style={styles.input} type="password" value={form.confirm} onChange={set("confirm")} />
+        </AuthField>
+      </div>
+
+      <div style={styles.fieldGroup}>
+        <label style={styles.fieldLabel}>Recevoir le code de vérification par</label>
+        <div style={styles.methodRow}>
+          <button
+            style={{ ...styles.methodBtn, ...(form.method === "email" ? styles.methodBtnActive : {}) }}
+            onClick={() => setForm((f) => ({ ...f, method: "email" }))}
+          >
+            Email
+          </button>
+          <button
+            style={{ ...styles.methodBtn, ...(form.method === "sms" ? styles.methodBtnActive : {}) }}
+            onClick={() => setForm((f) => ({ ...f, method: "sms" }))}
+          >
+            SMS
+          </button>
+        </div>
+      </div>
+
+      {error && <p style={styles.errorText}>{error}</p>}
+
+      <button style={{ ...styles.primaryBtn, width: "100%", marginTop: 8 }} onClick={submit}>
+        Créer mon compte
+      </button>
+
+      <p style={styles.authFoot}>
+        Déjà un compte ?{" "}
+        <button style={styles.inlineLink} onClick={onBack}>
+          Se connecter
+        </button>
+      </p>
+    </AuthShell>
+  );
+}
