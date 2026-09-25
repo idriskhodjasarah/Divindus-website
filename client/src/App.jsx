@@ -44,7 +44,7 @@ import SupportPage from "./pages/SupportPage";
 
 export default function App() {
   const [stage, setStage] = useState("landing"); // landing | login | register | verify | shop | legal | support
-  const [pending, setPending] = useState(null); // { method, contact }
+  const [pending, setPending] = useState(null); // { contact }
   const [profile, setProfile] = useState(null); // { prenom, nom, email, telephone, adresse }
   const [legalTab, setLegalTab] = useState("cgv");
   const [returnStage, setReturnStage] = useState("landing"); // where "back" goes from legal/support
@@ -66,7 +66,7 @@ export default function App() {
 
       {stage === "login" && (
         <Login
-          onLogin={() => setStage("shop")}
+          onLogin={(profile) => { setProfile(profile); setStage("shop"); }}
           onRegister={() => setStage("register")}
           onBack={() => setStage("landing")}
           onOpenResetDemo={() => setStage("reset")}

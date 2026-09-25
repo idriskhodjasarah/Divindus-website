@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { User, Phone, Mail, MapPin, Lock } from "lucide-react";
-import { styles, AuthShell, AuthField } from "divindus-shared";
+import { styles } from "divindus-shared";
+import { AuthShell, AuthField } from "divindus-shared";
+import { apiFetch } from "divindus-shared"
 export default function Register({ onSubmit, onBack }) {
   const [form, setForm] = useState({
     prenom: "",
@@ -10,15 +12,15 @@ export default function Register({ onSubmit, onBack }) {
     adresse: "",
     password: "",
     confirm: "",
-    method: "email",
   });
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
   const isValid =
     form.prenom && form.nom && form.telephone && form.email && form.adresse && form.password;
 
-  const submit = () => {
+  const submit = async () => {
     if (!isValid) {
       setError("Merci de remplir tous les champs.");
       return;
@@ -28,17 +30,34 @@ export default function Register({ onSubmit, onBack }) {
       return;
     }
     setError("");
-    onSubmit({
-      method: form.method,
-      contact: form.method === "email" ? form.email : form.telephone,
-      profile: {
-        prenom: form.prenom,
-        nom: form.nom,
-        email: form.email,
-        telephone: form.telephone,
-        adresse: form.adresse,
-      },
-    });
+    setLoading(true);
+    try {
+      await apiFetch("/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          email: form.email,
+          password: form.password,
+          prenom: form.prenom,
+          nom: form.nom,
+          telephone: form.telephone,
+          adresse: form.adresse,
+        }),
+      });
+      onSubmit({
+        contact: form.email,
+        profile: {
+          prenom: form.prenom,
+          nom: form.nom,
+          email: form.email,
+          telephone: form.telephone,
+          adresse: form.adresse,
+        },
+      });
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -79,28 +98,18 @@ export default function Register({ onSubmit, onBack }) {
         </AuthField>
       </div>
 
-      <div style={styles.fieldGroup}>
-        <label style={styles.fieldLabel}>Recevoir le code de vérification par</label>
-        <div style={styles.methodRow}>
-          <button
-            style={{ ...styles.methodBtn, ...(form.method === "email" ? styles.methodBtnActive : {}) }}
-            onClick={() => setForm((f) => ({ ...f, method: "email" }))}
-          >
-            Email
-          </button>
-          <button
-            style={{ ...styles.methodBtn, ...(form.method === "sms" ? styles.methodBtnActive : {}) }}
-            onClick={() => setForm((f) => ({ ...f, method: "sms" }))}
-          >
-            SMS
-          </button>
-        </div>
-      </div>
+      <p style={{ fontSize: 12, color: "#5B5749", marginBottom: 14 }}>
+        Un code de vérification à 8 chiffres vous sera envoyé par email.
+      </p>
 
       {error && <p style={styles.errorText}>{error}</p>}
 
-      <button style={{ ...styles.primaryBtn, width: "100%", marginTop: 8 }} onClick={submit}>
-        Créer mon compte
+      <button
+        style={{ ...styles.primaryBtn, width: "100%", marginTop: 8, opacity: loading ? 0.6 : 1 }}
+        onClick={submit}
+        disabled={loading}
+      >
+        {loading ? "Création du compte…" : "Créer mon compte"}
       </button>
 
       <p style={styles.authFoot}>

@@ -1,0 +1,10 @@
+{
+  "name": "divindus-website",
+  "private": true,
+  "version": "1.0.0",
+  "workspaces": [
+    "client",
+    "admin",
+    "shared"
+  ]
+}
