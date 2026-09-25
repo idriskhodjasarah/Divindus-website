@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { PRODUCTS, STATUS_STEPS } from "divindus-shared";
+import { useState, useEffect } from "react";
+import { STATUS_STEPS } from "divindus-shared";
+import { apiFetch } from "divindus-shared";
 import TopBar from "../components/TopBar";
 import Catalog from "../components/Catalog";
 import CartDrawer from "../components/CartDrawer";
@@ -19,6 +20,20 @@ export default function ShopApp({ onLogout, initialProfile }) {
   const [cart, setCart] = useState({});
   const [cartOpen, setCartOpen] = useState(false);
 
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError, setProductsError] = useState("");
+
+  useEffect(() => {
+    apiFetch("/products")
+      .then(({ products }) => {
+        // The DB column is "description"; the existing UI expects "desc" — map it once here.
+        setProducts(products.filter((p) => p.active).map((p) => ({ ...p, desc: p.description })));
+      })
+      .catch((err) => setProductsError(err.message))
+      .finally(() => setProductsLoading(false));
+  }, []);
+
   // Every placed order lives in this array — nothing gets overwritten when a new one is placed.
   const [orders, setOrders] = useState([]);
   const [activeOrderId, setActiveOrderId] = useState(null); // which order confirmation is currently showing
@@ -33,7 +48,7 @@ export default function ShopApp({ onLogout, initialProfile }) {
 
   const [legalTab, setLegalTab] = useState("cgv");
 
-  const filtered = PRODUCTS.filter((p) => {
+  const filtered = products.filter((p) => {
     const matchCat = category === "all" || p.category === category;
     const matchQuery =
       query.trim() === "" ||
@@ -44,7 +59,7 @@ export default function ShopApp({ onLogout, initialProfile }) {
 
   const cartItems = Object.entries(cart)
     .filter(([, qty]) => qty > 0)
-    .map(([id, qty]) => ({ ...PRODUCTS.find((p) => p.id === id), qty }));
+    .map(([id, qty]) => ({ ...products.find((p) => p.id === id), qty }));
 
   const cartCount = cartItems.reduce((s, i) => s + i.qty, 0);
   const cartTotal = cartItems.reduce((s, i) => s + (i.price || 0) * i.qty, 0);
@@ -150,7 +165,13 @@ export default function ShopApp({ onLogout, initialProfile }) {
       />
 
       <div style={{ flex: 1 }}>
-      {view === "catalog" && (
+      {view === "catalog" && productsLoading && (
+        <p style={{ padding: 40, textAlign: "center", color: "#5B5749" }}>Chargement du catalogue…</p>
+      )}
+      {view === "catalog" && productsError && (
+        <p style={{ padding: 40, textAlign: "center", color: "#8C3F22" }}>Impossible de charger le catalogue : {productsError}</p>
+      )}
+      {view === "catalog" && !productsLoading && !productsError && (
         <Catalog
           query={query}
           setQuery={setQuery}
