@@ -1,7 +1,6 @@
-import { useState } from "react";
 import { Menu, LayoutDashboard, ShoppingBag, FileText, Boxes, Users, RotateCcw, MessageSquare, LayoutTemplate, UserCog } from "lucide-react";
 import { styles } from "../styles/styles";
-import { ORDERS_SEED, PRODUCTS_SEED, MESSAGES_SEED, QUOTES_SEED, computeCustomers } from "../data/data";
+import { ORDERS_SEED, MESSAGES_SEED, QUOTES_SEED, computeCustomers } from "../data/data";
 import Sidebar from "../components/Sidebar";
 import GlobalSearch from "../components/GlobalSearch";
 import Overview from "./Overview";
@@ -13,7 +12,8 @@ import MessagesSection from "./MessagesSection";
 import QuotesSection from "./QuotesSection";
 import ContentSection from "./ContentSection";
 import ProfileSection from "./ProfileSection";
-
+import { useState, useEffect } from "react";
+import { apiFetch } from "divindus-shared";
 const NAV = [
   { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
   { key: "orders", label: "Commandes", icon: ShoppingBag },
@@ -29,7 +29,14 @@ const NAV = [
 export default function Dashboard({ onLogout }) {
   const [section, setSection] = useState("overview");
   const [orders, setOrders] = useState(ORDERS_SEED);
-  const [products, setProducts] = useState(PRODUCTS_SEED);
+const [products, setProducts] = useState([]);
+const [productsLoading, setProductsLoading] = useState(true);
+
+useEffect(() => {
+  apiFetch("/products")
+    .then(({ products }) => setProducts(products.map((p) => ({ ...p, desc: p.description }))))
+    .finally(() => setProductsLoading(false));
+}, []);
   const [messages, setMessages] = useState(MESSAGES_SEED);
   const [quotes, setQuotes] = useState(QUOTES_SEED);
   const [navOpen, setNavOpen] = useState(false);
@@ -72,8 +79,7 @@ export default function Dashboard({ onLogout }) {
           <OrdersSection orders={orders} query={ordersQuery} setQuery={setOrdersQuery} />
         )}
         {section === "quotes" && <QuotesSection quotes={quotes} onAnswer={answerQuote} />}
-        {section === "products" && <ProductsSection products={products} setProducts={setProducts} />}
-        {section === "customers" && <CustomersSection orders={orders} customers={customers} />}
+        {section === "products" && <ProductsSection products={products} setProducts={setProducts} loading={productsLoading} />}        {section === "customers" && <CustomersSection orders={orders} customers={customers} />}
         {section === "refunds" && <RefundsSection orders={orders} onCompleteRefund={completeRefund} />}
         {section === "messages" && <MessagesSection messages={messages} setMessages={setMessages} />}
         {section === "content" && <ContentSection />}

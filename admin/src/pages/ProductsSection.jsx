@@ -2,20 +2,71 @@ import { useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { styles, color } from "../styles/styles";
 import { fmt } from "../data/data";
+import { apiFetch, authHeader } from "divindus-shared";
 
-export default function ProductsSection({ products, setProducts }) {
-  const [editing, setEditing] = useState(null); // product object being edited, or "new"
+export default function ProductsSection({ products, setProducts, loading }) {
+  const [editing, setEditing] = useState(null);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
 
-  const save = (product) => {
-    setProducts((prev) => {
-      const exists = prev.some((p) => p.id === product.id);
-      return exists ? prev.map((p) => (p.id === product.id ? product : p)) : [product, ...prev];
-    });
-    setEditing(null);
+  const save = async (product) => {
+    setError("");
+    setSaving(true);
+    const { desc, ...rest } = product;
+    const payload = { ...rest, description: desc };
+    const isNew = !products.some((p) => p.id === product.id);
+
+    try {
+      if (isNew) {
+        const { product: created } = await apiFetch("/products", {
+          method: "POST",
+          headers: authHeader(),
+          body: JSON.stringify(payload),
+        });
+        setProducts((prev) => [{ ...created, desc: created.description }, ...prev]);
+      } else {
+        const { product: updated } = await apiFetch(`/products/${product.id}`, {
+          method: "PUT",
+          headers: authHeader(),
+          body: JSON.stringify(payload),
+        });
+        setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...updated, desc: updated.description } : p)));
+      }
+      setEditing(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const remove = (id) => setProducts((prev) => prev.filter((p) => p.id !== id));
-  const toggleActive = (id) => setProducts((prev) => prev.map((p) => (p.id === id ? { ...p, active: !p.active } : p)));
+  const remove = async (id) => {
+    setError("");
+    try {
+      await apiFetch(`/products/${id}`, { method: "DELETE", headers: authHeader() });
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const toggleActive = async (product) => {
+    setError("");
+    try {
+      const { product: updated } = await apiFetch(`/products/${product.id}`, {
+        method: "PUT",
+        headers: authHeader(),
+        body: JSON.stringify({ active: !product.active }),
+      });
+      setProducts((prev) => prev.map((p) => (p.id === product.id ? { ...p, active: updated.active } : p)));
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  if (loading) {
+    return <p style={styles.emptyState}>Chargement des produits…</p>;
+  }
 
   return (
     <div>
@@ -25,6 +76,8 @@ export default function ProductsSection({ products, setProducts }) {
           <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Plus size={15} /> Ajouter un produit</span>
         </button>
       </div>
+
+      {error && <p style={{ color: color.rust, fontSize: 13, marginBottom: 16 }}>{error}</p>}
 
       <div style={styles.productGrid}>
         {products.map((p) => (
@@ -36,19 +89,19 @@ export default function ProductsSection({ products, setProducts }) {
             <div style={styles.productPrice}>{p.price ? fmt(p.price) : "Sur devis"} <span style={styles.productUnit}>/ {p.unit}</span></div>
             <div style={styles.productActions}>
               <button style={styles.iconTextBtn} onClick={() => setEditing(p)}><Pencil size={13} /> Modifier</button>
-              <button style={styles.iconTextBtn} onClick={() => toggleActive(p.id)}>{p.active ? "Désactiver" : "Activer"}</button>
+              <button style={styles.iconTextBtn} onClick={() => toggleActive(p)}>{p.active ? "Désactiver" : "Activer"}</button>
               <button style={{ ...styles.iconTextBtn, color: color.rust }} onClick={() => remove(p.id)}><Trash2 size={13} /> Supprimer</button>
             </div>
           </div>
         ))}
       </div>
 
-      {editing && <ProductModal product={editing} onSave={save} onClose={() => setEditing(null)} />}
+      {editing && <ProductModal product={editing} onSave={save} onClose={() => setEditing(null)} saving={saving} />}
     </div>
   );
 }
 
-function ProductModal({ product, onSave, onClose }) {
+function ProductModal({ product, onSave, onClose, saving }) {
   const [form, setForm] = useState({
     ...product,
     specText: (product.spec || []).join("\n"),
@@ -87,8 +140,8 @@ function ProductModal({ product, onSave, onClose }) {
           <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Unité</div><input style={styles.input} value={form.unit} onChange={set("unit")} /></div>
         </div>
         <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Délai</div><input style={styles.input} value={form.lead} onChange={set("lead")} /></div>
-        <button style={{ ...styles.primaryBtn, width: "100%" }} onClick={handleSave}>
-          Enregistrer
+        <button style={{ ...styles.primaryBtn, width: "100%", opacity: saving ? 0.6 : 1 }} onClick={handleSave} disabled={saving}>
+          {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
       </div>
     </div>

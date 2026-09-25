@@ -7,4 +7,4 @@ export { Feature, Stat } from "./components/FeatureAndStat.jsx";
 export { styles, globalCss, color } from "./styles/styles.js";
 export * from "./data/data.js";
 export { default as logo } from "./assets/logo.png";
-export { apiFetch } from "./api.js";
+export { apiFetch, authHeader } from "./api.js";
