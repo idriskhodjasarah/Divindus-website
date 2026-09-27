@@ -5,11 +5,13 @@ const app = express();
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
+const quoteRoutes = require('./routes/quotes');
 app.use(cors());
 app.use(express.json());
 app.use('/auth', authRoutes);
 app.use('/products', productRoutes);
 app.use('/orders', orderRoutes);
+app.use('/quotes', quoteRoutes);
 app.get('/', (req, res) => {
   res.send('DIVINDUS API is running');
 });
