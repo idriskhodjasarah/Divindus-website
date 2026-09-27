@@ -3,7 +3,7 @@ import { Search, Download, CheckCircle2 } from "lucide-react";
 import { styles } from "../styles/styles";
 import { fmt, dateFmt, downloadCsv, downloadJson } from "../data/data";
 
-export default function OrdersSection({ orders, query, setQuery }) {
+export default function OrdersSection({ orders, query, setQuery, loading }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [expanded, setExpanded] = useState(null);
   const [selected, setSelected] = useState([]);
@@ -34,7 +34,9 @@ export default function OrdersSection({ orders, query, setQuery }) {
   const exportLabel = selected.length > 0 ? `(${selected.length} sélectionnée${selected.length > 1 ? "s" : ""})` : `(${filtered.length})`;
   const exportCsv = () => downloadCsv(selected.length > 0 ? "commandes-selection.csv" : "commandes.csv", csvHeaders, exportRows(exportTarget));
   const exportJson = () => downloadJson(selected.length > 0 ? "commandes-selection.json" : "commandes.json", exportTarget);
-
+    if (loading) {
+  return <p style={styles.emptyState}>Chargement des commandes…</p>;
+}
   return (
     <div>
       <div style={styles.searchWrap}>
