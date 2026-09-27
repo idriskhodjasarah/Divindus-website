@@ -1,6 +1,8 @@
+import { useState, useEffect } from "react";
 import { Menu, LayoutDashboard, ShoppingBag, FileText, Boxes, Users, RotateCcw, MessageSquare, LayoutTemplate, UserCog } from "lucide-react";
 import { styles } from "../styles/styles";
-import { ORDERS_SEED, MESSAGES_SEED, QUOTES_SEED, computeCustomers } from "../data/data";
+import { MESSAGES_SEED, QUOTES_SEED, computeCustomers } from "../data/data";
+import { apiFetch, authHeader } from "divindus-shared";
 import Sidebar from "../components/Sidebar";
 import GlobalSearch from "../components/GlobalSearch";
 import Overview from "./Overview";
@@ -12,8 +14,23 @@ import MessagesSection from "./MessagesSection";
 import QuotesSection from "./QuotesSection";
 import ContentSection from "./ContentSection";
 import ProfileSection from "./ProfileSection";
-import { useState, useEffect } from "react";
-import { apiFetch } from "divindus-shared";
+
+// The DB uses snake_case and nests line items as "order_items"; the admin UI
+// expects camelCase, a flat "items" array, a computed "total", and a "client"
+// display name. Map once, here, same pattern used in the client app.
+function mapOrder(o) {
+  const items = (o.order_items || []).map((i) => ({ id: i.product_id, name: i.name, filiale: i.filiale, qty: i.qty, price: i.price }));
+  return {
+    ...o,
+    items,
+    total: items.reduce((s, i) => s + (i.price || 0) * i.qty, 0),
+    client: o.entreprise || o.contact,
+    statusIndex: o.status_index,
+    refundStatus: o.refund_status,
+    placedAt: o.placed_at,
+  };
+}
+
 const NAV = [
   { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
   { key: "orders", label: "Commandes", icon: ShoppingBag },
@@ -28,21 +45,39 @@ const NAV = [
 
 export default function Dashboard({ onLogout }) {
   const [section, setSection] = useState("overview");
-  const [orders, setOrders] = useState(ORDERS_SEED);
-const [products, setProducts] = useState([]);
-const [productsLoading, setProductsLoading] = useState(true);
 
-useEffect(() => {
-  apiFetch("/products")
-    .then(({ products }) => setProducts(products.map((p) => ({ ...p, desc: p.description }))))
-    .finally(() => setProductsLoading(false));
-}, []);
+  const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch("/orders", { headers: authHeader() })
+      .then(({ orders }) => setOrders(orders.map(mapOrder)))
+      .finally(() => setOrdersLoading(false));
+  }, []);
+
+  const [products, setProducts] = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch("/products")
+      .then(({ products }) => setProducts(products.map((p) => ({ ...p, desc: p.description }))))
+      .finally(() => setProductsLoading(false));
+  }, []);
+
   const [messages, setMessages] = useState(MESSAGES_SEED);
   const [quotes, setQuotes] = useState(QUOTES_SEED);
   const [navOpen, setNavOpen] = useState(false);
   const [ordersQuery, setOrdersQuery] = useState("");
 
-  const completeRefund = (id) => setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, refundStatus: "remboursee" } : o)));
+  const completeRefund = async (id) => {
+    const { order } = await apiFetch(`/orders/${id}`, {
+      method: "PATCH",
+      headers: authHeader(),
+      body: JSON.stringify({ refund_status: "remboursee" }),
+    });
+    setOrders((prev) => prev.map((o) => (o.id === id ? mapOrder(order) : o)));
+  };
+
   const answerQuote = (id, prix, message) => setQuotes((prev) => prev.map((q) => (q.id === id ? { ...q, status: "répondu", reponsePrix: prix, reponseMessage: message } : q)));
 
   const customers = computeCustomers(orders);
@@ -70,16 +105,17 @@ useEffect(() => {
       />
 
       <main className="admin-content" style={styles.content}>
-        {section !== "orders" && section !== "profile" && section !== "content" && section !== "overview" &&(
+        {section !== "orders" && section !== "profile" && section !== "content" && section !== "overview" && (
           <GlobalSearch orders={orders} products={products} customers={customers} onGoTo={(sec, query) => { if (query) setOrdersQuery(query); setSection(sec); }} />
         )}
 
         {section === "overview" && <Overview orders={orders} products={products} customers={customers} />}
         {section === "orders" && (
-          <OrdersSection orders={orders} query={ordersQuery} setQuery={setOrdersQuery} />
+          <OrdersSection orders={orders} query={ordersQuery} setQuery={setOrdersQuery} loading={ordersLoading} />
         )}
         {section === "quotes" && <QuotesSection quotes={quotes} onAnswer={answerQuote} />}
-        {section === "products" && <ProductsSection products={products} setProducts={setProducts} loading={productsLoading} />}        {section === "customers" && <CustomersSection orders={orders} customers={customers} />}
+        {section === "products" && <ProductsSection products={products} setProducts={setProducts} loading={productsLoading} />}
+        {section === "customers" && <CustomersSection orders={orders} customers={customers} />}
         {section === "refunds" && <RefundsSection orders={orders} onCompleteRefund={completeRefund} />}
         {section === "messages" && <MessagesSection messages={messages} setMessages={setMessages} />}
         {section === "content" && <ContentSection />}
