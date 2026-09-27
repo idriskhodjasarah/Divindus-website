@@ -16,7 +16,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   const { data: order, error: orderError } = await req.supabase
     .from('orders')
-    .insert({ ref, user_id: req.user.id, entreprise, nif, contact, telephone, wilaya, adresse, paiement })
+    .insert({ ref, user_id: req.user.id, email: req.user.email, entreprise, nif, contact, telephone, wilaya, adresse, paiement })
     .select()
     .single();
 
