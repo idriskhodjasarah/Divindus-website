@@ -1,7 +1,9 @@
 import { Minus, Plus } from "lucide-react";
 import { styles, fmt } from "divindus-shared";
-
+import QuoteRequestModal from "../components/QuoteRequestModal";
+import { useState } from "react";
 export default function ProductCard({ p, qty, onAdd, onChangeQty }) {
+  const [quoteOpen, setQuoteOpen] = useState(false);
   return (
     <article style={styles.card}>
       <div style={styles.cardTop}>
