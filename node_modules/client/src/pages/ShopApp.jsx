@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { STATUS_STEPS } from "divindus-shared";
-import { apiFetch } from "divindus-shared";
+import { STATUS_STEPS, apiFetch, authHeader } from "divindus-shared";
 import TopBar from "../components/TopBar";
 import Catalog from "../components/Catalog";
 import CartDrawer from "../components/CartDrawer";
@@ -12,6 +11,20 @@ import OrdersList from "./OrdersList";
 import Account from "./Account";
 import LegalPage from "./LegalPage";
 import SupportPage from "./SupportPage";
+
+// The DB uses snake_case and nests line items as "order_items"; the UI expects
+// camelCase and a flat "items" array with a "total" already computed. Map once, here.
+function mapOrder(o) {
+  const items = (o.order_items || []).map((i) => ({ id: i.product_id, name: i.name, filiale: i.filiale, qty: i.qty, price: i.price }));
+  return {
+    ...o,
+    items,
+    total: items.reduce((s, i) => s + (i.price || 0) * i.qty, 0),
+    statusIndex: o.status_index,
+    refundStatus: o.refund_status,
+    placedAt: o.placed_at,
+  };
+}
 
 export default function ShopApp({ onLogout, initialProfile }) {
   const [view, setView] = useState("catalog");
@@ -34,9 +47,16 @@ export default function ShopApp({ onLogout, initialProfile }) {
       .finally(() => setProductsLoading(false));
   }, []);
 
-  // Every placed order lives in this array — nothing gets overwritten when a new one is placed.
   const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [activeOrderId, setActiveOrderId] = useState(null); // which order confirmation is currently showing
+
+  useEffect(() => {
+    apiFetch("/orders", { headers: authHeader() })
+      .then(({ orders }) => setOrders(orders.map(mapOrder)))
+      .catch(() => {})
+      .finally(() => setOrdersLoading(false));
+  }, []);
 
   const [profile, setProfile] = useState(
     initialProfile || { prenom: "", nom: "", email: "", telephone: "", adresse: "", photo: null }
@@ -77,74 +97,64 @@ export default function ShopApp({ onLogout, initialProfile }) {
     setUnread((u) => u + 1);
   };
 
-  const placeOrder = (details) => {
-    const id = Date.now();
-    const ref = "DVX-" + Math.floor(100000 + Math.random() * 900000);
-    const newOrder = {
-      id,
-      ref,
-      items: cartItems,
-      total: cartTotal,
-      statusIndex: 0,
-      received: false,
-      cancelled: false,
-      refundStatus: null, // null | "en_cours" | "remboursee" — only relevant for card payments
-      placedAt: new Date(),
-      ...details,
-    };
-    setOrders((prev) => [newOrder, ...prev]);
-    setActiveOrderId(id);
-    pushNotification(`Votre commande ${ref} ${STATUS_STEPS[0].note}`);
-    setCart({});
-    setView("confirmation");
+  const placeOrder = async (details) => {
+    try {
+      const { order } = await apiFetch("/orders", {
+        method: "POST",
+        headers: authHeader(),
+        body: JSON.stringify({ items: cartItems, ...details }),
+      });
+      const mapped = mapOrder(order);
+      setOrders((prev) => [mapped, ...prev]);
+      setActiveOrderId(mapped.id);
+      pushNotification(`Votre commande ${mapped.ref} ${STATUS_STEPS[0].note}`);
+      setCart({});
+      setView("confirmation");
+    } catch (err) {
+      pushNotification(`Erreur lors de la commande : ${err.message}`);
+    }
   };
 
-  const advanceStatus = (orderId) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        const next = Math.min(o.statusIndex + 1, STATUS_STEPS.length - 1);
-        pushNotification(`Votre commande ${o.ref} ${STATUS_STEPS[next].note}`);
-        return { ...o, statusIndex: next };
-      })
-    );
+  const patchOrder = async (orderId, patch) => {
+    const { order } = await apiFetch(`/orders/${orderId}`, {
+      method: "PATCH",
+      headers: authHeader(),
+      body: JSON.stringify(patch),
+    });
+    const mapped = mapOrder(order);
+    setOrders((prev) => prev.map((o) => (o.id === orderId ? mapped : o)));
+    return mapped;
   };
 
-  const confirmReception = (orderId) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        pushNotification(`Réception de la commande ${o.ref} confirmée — merci d'avoir commandé chez DIVINDUS.`);
-        return { ...o, received: true };
-      })
-    );
+  const advanceStatus = async (orderId) => {
+    const current = orders.find((o) => o.id === orderId);
+    const next = Math.min(current.statusIndex + 1, STATUS_STEPS.length - 1);
+    const updated = await patchOrder(orderId, { status_index: next });
+    pushNotification(`Votre commande ${updated.ref} ${STATUS_STEPS[next].note}`);
+  };
+
+  const confirmReception = async (orderId) => {
+    const updated = await patchOrder(orderId, { received: true });
+    pushNotification(`Réception de la commande ${updated.ref} confirmée — merci d'avoir commandé chez DIVINDUS.`);
   };
 
   // Bank transfer isn't charged until the proforma is settled, so cancelling is instant.
   // Card payments are charged immediately, so cancelling starts a refund instead of an instant undo.
-  const cancelOrder = (orderId) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        if (o.paiement === "carte") {
-          pushNotification(`Demande d'annulation reçue pour la commande ${o.ref}. Remboursement sous 5 à 7 jours ouvrés.`);
-          return { ...o, refundStatus: "en_cours" };
-        }
-        pushNotification(`Votre commande ${o.ref} a été annulée. Aucun paiement n'ayant encore été prélevé, aucun remboursement n'est nécessaire.`);
-        return { ...o, cancelled: true };
-      })
-    );
+  const cancelOrder = async (orderId) => {
+    const current = orders.find((o) => o.id === orderId);
+    if (current.paiement === "carte") {
+      const updated = await patchOrder(orderId, { refund_status: "en_cours" });
+      pushNotification(`Demande d'annulation reçue pour la commande ${updated.ref}. Remboursement sous 5 à 7 jours ouvrés.`);
+    } else {
+      const updated = await patchOrder(orderId, { cancelled: true });
+      pushNotification(`Votre commande ${updated.ref} a été annulée. Aucun paiement n'ayant encore été prélevé, aucun remboursement n'est nécessaire.`);
+    }
   };
 
   // Demo-only: simulates the bank confirming the refund a few days later.
-  const completeRefund = (orderId) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== orderId) return o;
-        pushNotification(`Remboursement de la commande ${o.ref} effectué.`);
-        return { ...o, cancelled: true, refundStatus: "remboursee" };
-      })
-    );
+  const completeRefund = async (orderId) => {
+    const updated = await patchOrder(orderId, { cancelled: true, refund_status: "remboursee" });
+    pushNotification(`Remboursement de la commande ${updated.ref} effectué.`);
   };
 
   const activeOrder = orders.find((o) => o.id === activeOrderId) || null;
@@ -203,7 +213,10 @@ export default function ShopApp({ onLogout, initialProfile }) {
         />
       )}
 
-      {view === "orders" && (
+      {view === "orders" && ordersLoading && (
+        <p style={{ padding: 40, textAlign: "center", color: "#5B5749" }}>Chargement de vos commandes…</p>
+      )}
+      {view === "orders" && !ordersLoading && (
         <OrdersList
           orders={orders}
           onAdvance={advanceStatus}
