@@ -26,6 +26,7 @@ router.post('/', requireAuth, async (req, res) => {
   const { data, error } = await req.supabase.from('products').insert(req.body).select().single();
 
   if (error) {
+    console.error(error);
     return res.status(403).json({ error: "Action réservée aux administrateurs, ou données invalides." });
   }
 
