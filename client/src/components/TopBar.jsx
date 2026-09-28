@@ -1,7 +1,7 @@
-import { User, ClipboardList, LogOut, Bell, ShoppingCart } from "lucide-react";
+import { User, ClipboardList, LogOut, Bell, ShoppingCart, FileText } from "lucide-react";
 import { styles, logo } from "divindus-shared";
-export default function TopBar({ cartCount, unread, ordersCount, profile, onCartClick, onNotifClick, onOrdersClick, onAccountClick, onLogoClick, onLogout }) {
-  const initials = ((profile?.prenom?.[0] || "") + (profile?.nom?.[0] || "")).toUpperCase();
+export default function TopBar({ cartCount, unread, ordersCount, quotesBadge, profile, onCartClick, onNotifClick, onOrdersClick, onQuotesClick, onAccountClick, onLogoClick, onLogout }) {
+    const initials = ((profile?.prenom?.[0] || "") + (profile?.nom?.[0] || "")).toUpperCase();
 
   return (
     <header style={styles.topbar}>
@@ -21,6 +21,10 @@ export default function TopBar({ cartCount, unread, ordersCount, profile, onCart
         <button style={styles.cartBtn} onClick={onOrdersClick} title="Mes commandes">
           <ClipboardList size={20} strokeWidth={1.75} />
           {ordersCount > 0 && <span style={styles.cartBadge}>{ordersCount}</span>}
+        </button>
+        <button style={styles.cartBtn} onClick={onQuotesClick} title="Mes devis">
+          <FileText size={20} strokeWidth={1.75} />
+          {quotesBadge > 0 && <span style={styles.cartBadge}>{quotesBadge}</span>}
         </button>
         <button style={styles.iconBtnDark} onClick={onLogout} title="Déconnexion">
           <LogOut size={18} strokeWidth={1.75} />
