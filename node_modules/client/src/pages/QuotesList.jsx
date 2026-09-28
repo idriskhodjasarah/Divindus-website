@@ -1,6 +1,7 @@
+import { Check } from "lucide-react";
 import { styles, color, fmt } from "divindus-shared";
 
-export default function QuotesList({ quotes, onBack }) {
+export default function QuotesList({ quotes, newIds, onOrder, onBack }) {
   const dateFmt = (d) =>
     new Date(d).toLocaleDateString("fr-DZ", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -17,12 +18,20 @@ export default function QuotesList({ quotes, onBack }) {
         <div style={styles.ordersList}>
           {quotes.map((q) => {
             const answered = q.status === "répondu";
+            const isNew = newIds.includes(q.id);
             return (
               <div key={q.id} style={styles.orderCard}>
                 <div style={styles.orderCardTop}>
                   <div>
-                    <div style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-                      {q.produit}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+                      <span style={{ fontFamily: "'Oswald', sans-serif", fontSize: 16, fontWeight: 600 }}>
+                        {q.produit}
+                      </span>
+                      {isNew && (
+                        <span style={{ background: color.amber, color: color.graphite, fontSize: 10.5, fontWeight: 700, padding: "2px 7px" }}>
+                          NOUVEAU
+                        </span>
+                      )}
                     </div>
                     <div style={styles.orderCardDate}>Demandé le {dateFmt(q.created_at)}</div>
                   </div>
@@ -36,12 +45,26 @@ export default function QuotesList({ quotes, onBack }) {
                 </div>
 
                 {answered ? (
-                  <div style={styles.noteBox}>
-                    <div style={{ fontWeight: 600, color: color.ink }}>
-                      Prix proposé : {fmt(q.reponse_prix)}
+                  <>
+                    <div style={styles.noteBox}>
+                      <div style={{ fontWeight: 600, color: color.ink }}>
+                        Prix proposé : {fmt(q.reponse_prix)}
+                      </div>
+                      <p style={{ margin: "6px 0 0" }}>{q.reponse_message}</p>
                     </div>
-                    <p style={{ margin: "6px 0 0" }}>{q.reponse_message}</p>
-                  </div>
+
+                    <div style={{ marginTop: 14 }}>
+                      {q.order_id ? (
+                        <span style={styles.orderReceivedTag}>
+                          <Check size={15} /> Commande passée
+                        </span>
+                      ) : (
+                        <button style={styles.primaryBtn} onClick={() => onOrder(q)}>
+                          Commander à ce prix
+                        </button>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <p style={{ fontSize: 12.5, color: color.inkSoft, margin: 0 }}>
                     Un chargé d'affaires étudie votre demande.
