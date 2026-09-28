@@ -1,14 +1,15 @@
 const express = require('express');
 const router = express.Router();
+const supabaseAdmin = require('../supabaseAdmin');
 const { requireAuth } = require('../middleware/requireAuth');
 
 // ---------------------------------------------------------------------------
 // POST /quotes — a customer requests a quote for a "sur devis" product.
-// Client name/email/phone are pulled from their own verified profile —
-// never trusted from the request body — only "produit" and "details" are.
+// Client name/email/phone come from their own verified profile — never
+// trusted from the request body. Only produit, product_id and details are.
 // ---------------------------------------------------------------------------
 router.post('/', requireAuth, async (req, res) => {
-  const { produit, details } = req.body;
+  const { produit, product_id, details } = req.body;
 
   if (!produit || !details) {
     return res.status(400).json({ error: 'Merci de préciser le produit et les détails de la demande.' });
@@ -24,6 +25,7 @@ router.post('/', requireAuth, async (req, res) => {
       email: req.user.email,
       telephone: profile?.telephone || '',
       produit,
+      product_id: product_id || null,
       details,
     })
     .select()
@@ -31,7 +33,7 @@ router.post('/', requireAuth, async (req, res) => {
 
   if (error) {
     console.error(error);
-    return res.status(400).json({ error: 'Impossible d\'envoyer la demande de devis.' });
+    return res.status(400).json({ error: "Impossible d'envoyer la demande de devis." });
   }
 
   res.json({ quote: data });
@@ -39,7 +41,7 @@ router.post('/', requireAuth, async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // GET /quotes — a customer's own quote requests, or ALL of them if admin
-// (same RLS-driven pattern as orders).
+// (RLS does the filtering).
 // ---------------------------------------------------------------------------
 router.get('/', requireAuth, async (req, res) => {
   const { data, error } = await req.supabase.from('quotes').select('*').order('created_at', { ascending: false });
@@ -53,14 +55,36 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// POST /quotes/seen — the customer opened "Mes devis": mark their answered
+// quotes as seen. Uses the admin client so we can allow changing ONLY this one
+// flag, on ONLY the caller's own quotes — customers still have no direct
+// permission to update quotes (otherwise they could edit the admin's price).
+// ---------------------------------------------------------------------------
+router.post('/seen', requireAuth, async (req, res) => {
+  const { error } = await supabaseAdmin
+    .from('quotes')
+    .update({ seen_by_client: true })
+    .eq('user_id', req.user.id)
+    .eq('status', 'répondu');
+
+  if (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Impossible de mettre à jour les devis.' });
+  }
+
+  res.json({ success: true });
+});
+
+// ---------------------------------------------------------------------------
 // PATCH /quotes/:id — admin answers a quote request (enforced by RLS).
+// Answering resets "seen" so the customer gets a fresh notification badge.
 // ---------------------------------------------------------------------------
 router.patch('/:id', requireAuth, async (req, res) => {
   const { reponse_prix, reponse_message } = req.body;
 
   const { data, error } = await req.supabase
     .from('quotes')
-    .update({ reponse_prix, reponse_message, status: 'répondu' })
+    .update({ reponse_prix, reponse_message, status: 'répondu', seen_by_client: false })
     .eq('id', req.params.id)
     .select()
     .single();
