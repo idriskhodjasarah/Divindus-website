@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Menu, LayoutDashboard, ShoppingBag, FileText, Boxes, Users, RotateCcw, MessageSquare, LayoutTemplate, UserCog } from "lucide-react";
 import { styles } from "../styles/styles";
-import { MESSAGES_SEED, QUOTES_SEED, computeCustomers } from "../data/data";
+import { MESSAGES_SEED, computeCustomers } from "../data/data";
 import { apiFetch, authHeader } from "divindus-shared";
 import Sidebar from "../components/Sidebar";
 import GlobalSearch from "../components/GlobalSearch";
@@ -30,7 +30,9 @@ function mapOrder(o) {
     placedAt: o.placed_at,
   };
 }
-
+function mapQuote(q) {
+  return { ...q, date: q.created_at, reponsePrix: q.reponse_prix, reponseMessage: q.reponse_message };
+}
 const NAV = [
   { key: "overview", label: "Vue d'ensemble", icon: LayoutDashboard },
   { key: "orders", label: "Commandes", icon: ShoppingBag },
@@ -65,7 +67,13 @@ export default function Dashboard({ onLogout }) {
   }, []);
 
   const [messages, setMessages] = useState(MESSAGES_SEED);
-  const [quotes, setQuotes] = useState(QUOTES_SEED);
+const [quotes, setQuotes] = useState([]);
+
+useEffect(() => {
+  apiFetch("/quotes", { headers: authHeader() })
+    .then(({ quotes }) => setQuotes(quotes.map(mapQuote)))
+    .catch(() => {});
+}, []);
   const [navOpen, setNavOpen] = useState(false);
   const [ordersQuery, setOrdersQuery] = useState("");
 
@@ -78,8 +86,14 @@ export default function Dashboard({ onLogout }) {
     setOrders((prev) => prev.map((o) => (o.id === id ? mapOrder(order) : o)));
   };
 
-  const answerQuote = (id, prix, message) => setQuotes((prev) => prev.map((q) => (q.id === id ? { ...q, status: "répondu", reponsePrix: prix, reponseMessage: message } : q)));
-
+const answerQuote = async (id, prix, message) => {
+  const { quote } = await apiFetch(`/quotes/${id}`, {
+    method: "PATCH",
+    headers: authHeader(),
+    body: JSON.stringify({ reponse_prix: prix, reponse_message: message }),
+  });
+  setQuotes((prev) => prev.map((q) => (q.id === id ? mapQuote(quote) : q)));
+};
   const customers = computeCustomers(orders);
 
   const refundCount = orders.filter((o) => o.refundStatus === "en_cours").length;
