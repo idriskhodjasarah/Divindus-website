@@ -11,7 +11,7 @@ import OrdersList from "./OrdersList";
 import Account from "./Account";
 import LegalPage from "./LegalPage";
 import SupportPage from "./SupportPage";
-
+import QuotesList from "./QuotesList";
 // The DB uses snake_case and nests line items as "order_items"; the UI expects
 // camelCase and a flat "items" array with a "total" already computed. Map once, here.
 function mapOrder(o) {
@@ -46,7 +46,14 @@ export default function ShopApp({ onLogout, initialProfile }) {
       .catch((err) => setProductsError(err.message))
       .finally(() => setProductsLoading(false));
   }, []);
+  const [quotes, setQuotes] = useState([]);
 
+const loadQuotes = () =>
+  apiFetch("/quotes", { headers: authHeader() })
+    .then(({ quotes }) => setQuotes(quotes))
+    .catch(() => {});
+
+useEffect(() => { loadQuotes(); }, []);
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [activeOrderId, setActiveOrderId] = useState(null); // which order confirmation is currently showing
@@ -172,12 +179,15 @@ export default function ShopApp({ onLogout, initialProfile }) {
         onAccountClick={() => setView("account")}
         onLogoClick={() => setView("catalog")}
         onLogout={onLogout}
+        quotesBadge={quotes.filter((q) => q.status === "répondu").length}
+        onQuotesClick={() => { loadQuotes(); setView("quotes"); }}
       />
 
       <div style={{ flex: 1 }}>
       {view === "catalog" && productsLoading && (
         <p style={{ padding: 40, textAlign: "center", color: "#5B5749" }}>Chargement du catalogue…</p>
       )}
+      
       {view === "catalog" && productsError && (
         <p style={{ padding: 40, textAlign: "center", color: "#8C3F22" }}>Impossible de charger le catalogue : {productsError}</p>
       )}
@@ -242,7 +252,7 @@ export default function ShopApp({ onLogout, initialProfile }) {
       {view === "support" && (
         <SupportPage onBack={() => setView("catalog")} />
       )}
-
+      {view === "quotes" && <QuotesList quotes={quotes} onBack={() => setView("catalog")} />}
       </div>
 
       {cartOpen && (
