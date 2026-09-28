@@ -22,7 +22,9 @@ export default function ProductCard({ p, qty, onAdd, onChangeQty }) {
           <div style={styles.cardPrice}>{p.price ? fmt(p.price) : "Sur devis"}</div>
           <div style={styles.cardLead}>Délai : {p.lead}</div>
         </div>
-        {qty === 0 ? (
+                {p.price === null ? (
+          <button style={styles.addBtn} onClick={() => setQuoteOpen(true)}>Demander un devis</button>
+        ) : qty === 0 ? (
           <button style={styles.addBtn} onClick={onAdd}>Ajouter</button>
         ) : (
           <div style={styles.qtyStepper}>
@@ -32,6 +34,7 @@ export default function ProductCard({ p, qty, onAdd, onChangeQty }) {
           </div>
         )}
       </div>
+      {quoteOpen && <QuoteRequestModal product={p} onClose={() => setQuoteOpen(false)} />}
     </article>
   );
 }
