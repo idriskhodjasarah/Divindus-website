@@ -19,8 +19,7 @@ export default function QuoteRequestModal({ product, onClose }) {
       await apiFetch("/quotes", {
         method: "POST",
         headers: authHeader(),
-        body: JSON.stringify({ produit: product.name, details }),
-      });
+        body: JSON.stringify({ produit: product.name, product_id: product.id, details }),       });
       setSent(true);
     } catch (err) {
       setError(err.message);
