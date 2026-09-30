@@ -1,15 +1,27 @@
+import { useState, useEffect } from "react";
 import { ChevronLeft } from "lucide-react";
-import { styles, LEGAL_CONTENT } from "divindus-shared";
+import { styles, LEGAL_CONTENT, apiFetch } from "divindus-shared";
 
 export default function LegalPage({ tab, setTab, onBack }) {
-  const content = LEGAL_CONTENT[tab];
+  const [legal, setLegal] = useState(LEGAL_CONTENT); // static fallback until the real content loads
+
+  useEffect(() => {
+    apiFetch("/content")
+      .then(({ content }) => {
+        if (content.legal && Object.keys(content.legal).length > 0) setLegal(content.legal);
+      })
+      .catch(() => {});
+  }, []);
+
+  const content = legal[tab];
+
   return (
     <div style={styles.legalPage}>
       <div style={styles.legalWrap}>
         <button style={styles.backBtn} onClick={onBack}><ChevronLeft size={16} /> Retour</button>
 
         <div style={styles.legalTabs}>
-          {Object.entries(LEGAL_CONTENT).map(([key, val]) => (
+          {Object.entries(legal).map(([key, val]) => (
             <button
               key={key}
               onClick={() => setTab(key)}
