@@ -1,26 +1,60 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
-import { styles } from "../styles/styles";
-import { HERO_SLIDES_SEED, FOOTER_CONTENT_SEED, LEGAL_CONTENT_SEED } from "../data/data";
+import { styles, color, apiFetch, authHeader } from "divindus-shared";
 
 export default function ContentSection() {
   const [tab, setTab] = useState("hero");
-  const [slides, setSlides] = useState(HERO_SLIDES_SEED);
-  const [footer, setFooter] = useState(FOOTER_CONTENT_SEED);
-  const [legal, setLegal] = useState(LEGAL_CONTENT_SEED);
+  const [slides, setSlides] = useState([]);
+  const [footer, setFooter] = useState({ adresse: "", telephone: "", email: "" });
+  const [legal, setLegal] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
 
-  const flash = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  useEffect(() => {
+    apiFetch("/content")
+      .then(({ content }) => {
+        setSlides(content.hero_slides || []);
+        setFooter(content.footer || { adresse: "", telephone: "", email: "" });
+        setLegal(content.legal || {});
+      })
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    setError("");
+    setSaving(true);
+    try {
+      await apiFetch("/content", {
+        method: "PUT",
+        headers: authHeader(),
+        body: JSON.stringify({ hero_slides: slides, footer, legal }),
+      });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const updateSlide = (i, key, value) => setSlides((prev) => prev.map((s, idx) => (idx === i ? { ...s, [key]: value } : s)));
   const addSlide = () => setSlides((prev) => [...prev, { tag: "", title: "", desc: "" }]);
   const removeSlide = (i) => setSlides((prev) => prev.filter((_, idx) => idx !== i));
 
+  if (loading) {
+    return <p style={styles.emptyState}>Chargement du contenu…</p>;
+  }
+
   return (
     <div>
       <h1 style={styles.pageTitle}>Contenu du site</h1>
       <p style={styles.demoNoteInline}>
-        Aperçu démo — ces modifications ne sont pas connectées au site client dans ce prototype ; en production, les deux liraient le même contenu.
+        Ces modifications sont enregistrées dans la base de données et
+        s'appliquent immédiatement sur le site client et l'espace admin.
       </p>
 
       <div style={styles.legalTabs}>
@@ -48,7 +82,6 @@ export default function ContentSection() {
             <button style={styles.secondaryBtnSmall} onClick={addSlide}>
               <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter une diapositive</span>
             </button>
-            <button style={styles.primaryBtn} onClick={flash}>Enregistrer</button>
           </div>
         </div>
       )}
@@ -60,7 +93,6 @@ export default function ContentSection() {
             <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Téléphone</div><input style={styles.input} value={footer.telephone} onChange={(e) => setFooter((f) => ({ ...f, telephone: e.target.value }))} /></div>
             <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Email</div><input style={styles.input} value={footer.email} onChange={(e) => setFooter((f) => ({ ...f, email: e.target.value }))} /></div>
           </div>
-          <button style={styles.primaryBtn} onClick={flash}>Enregistrer</button>
         </div>
       )}
 
@@ -69,17 +101,42 @@ export default function ContentSection() {
           {Object.entries(legal).map(([key, page]) => (
             <div key={key} style={styles.contentBlock}>
               <div style={styles.subHead}>{page.title}</div>
-              <textarea
-                style={{ ...styles.textarea, minHeight: 140 }}
-                value={page.body}
-                onChange={(e) => setLegal((prev) => ({ ...prev, [key]: { ...prev[key], body: e.target.value } }))}
-              />
+              {page.sections.map((s, i) => (
+                <div key={i} style={{ marginBottom: 14 }}>
+                  <div style={styles.fieldGroup}>
+                    <div style={styles.fieldLabel}>Titre de la section</div>
+                    <input
+                      style={styles.input}
+                      value={s.h}
+                      onChange={(e) =>
+                        setLegal((prev) => ({
+                          ...prev,
+                          [key]: { ...prev[key], sections: prev[key].sections.map((sec, idx) => (idx === i ? { ...sec, h: e.target.value } : sec)) },
+                        }))
+                      }
+                    />
+                  </div>
+                  <textarea
+                    style={styles.textarea}
+                    value={s.p}
+                    onChange={(e) =>
+                      setLegal((prev) => ({
+                        ...prev,
+                        [key]: { ...prev[key], sections: prev[key].sections.map((sec, idx) => (idx === i ? { ...sec, p: e.target.value } : sec)) },
+                      }))
+                    }
+                  />
+                </div>
+              ))}
             </div>
           ))}
-          <button style={styles.primaryBtn} onClick={flash}>Enregistrer</button>
         </div>
       )}
 
+      {error && <p style={{ color: color.rust, fontSize: 12.5, marginBottom: 12 }}>{error}</p>}
+      <button style={{ ...styles.primaryBtn, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
+        {saving ? "Enregistrement…" : "Enregistrer"}
+      </button>
       {saved && <p style={styles.savedNote}>Modifications enregistrées.</p>}
     </div>
   );
