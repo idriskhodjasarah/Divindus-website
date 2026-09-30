@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { styles, color, apiFetch, authHeader } from "divindus-shared";
-
+import { styles, color } from "../styles/styles";
+import { apiFetch, authHeader } from "divindus-shared";
 export default function ProfileSection() {
   const [form, setForm] = useState({ prenom: "", nom: "", email: "" });
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
