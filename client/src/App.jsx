@@ -48,10 +48,17 @@ export default function App() {
   const [profile, setProfile] = useState(null); // { prenom, nom, email, telephone, adresse }
   const [legalTab, setLegalTab] = useState("cgv");
   const [returnStage, setReturnStage] = useState("landing"); // where "back" goes from legal/support
-
+  const [resetToken, setResetToken] = useState(null);
   const openLegal = (tab, from) => { setLegalTab(tab); setReturnStage(from); setStage("legal"); };
   const openSupport = (from) => { setReturnStage(from); setStage("support"); };
-
+  useEffect(() => {
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  if (hash.get("type") === "recovery" && hash.get("access_token")) {
+    setResetToken(hash.get("access_token"));
+    setStage("reset");
+    window.history.replaceState(null, "", window.location.pathname); // clean the URL
+  }
+}, []);
   return (
     <div style={styles.app}>
       <style>{globalCss}</style>
@@ -74,8 +81,8 @@ export default function App() {
       )}
 
       {stage === "reset" && (
-        <ResetPassword onDone={() => setStage("login")} />
-      )}
+  <ResetPassword accessToken={resetToken} onDone={() => setStage("login")} />
+)}
 
       {stage === "register" && (
         <Register
