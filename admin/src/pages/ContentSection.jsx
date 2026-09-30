@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
-import { styles, color, apiFetch, authHeader } from "divindus-shared";
-
+import { styles, color } from "../styles/styles";
+import { apiFetch, authHeader } from "divindus-shared";
 export default function ContentSection() {
   const [tab, setTab] = useState("hero");
   const [slides, setSlides] = useState([]);
@@ -45,6 +45,11 @@ export default function ContentSection() {
   const addSlide = () => setSlides((prev) => [...prev, { tag: "", title: "", desc: "" }]);
   const removeSlide = (i) => setSlides((prev) => prev.filter((_, idx) => idx !== i));
 
+  const addSection = (pageKey) =>
+    setLegal((prev) => ({ ...prev, [pageKey]: { ...prev[pageKey], sections: [...prev[pageKey].sections, { h: "", p: "" }] } }));
+  const removeSection = (pageKey, i) =>
+    setLegal((prev) => ({ ...prev, [pageKey]: { ...prev[pageKey], sections: prev[pageKey].sections.filter((_, idx) => idx !== i) } }));
+
   if (loading) {
     return <p style={styles.emptyState}>Chargement du contenu…</p>;
   }
@@ -52,11 +57,6 @@ export default function ContentSection() {
   return (
     <div>
       <h1 style={styles.pageTitle}>Contenu du site</h1>
-      <p style={styles.demoNoteInline}>
-        Ces modifications sont enregistrées dans la base de données et
-        s'appliquent immédiatement sur le site client et l'espace admin.
-      </p>
-
       <div style={styles.legalTabs}>
         <button style={{ ...styles.filterChip, ...(tab === "hero" ? styles.filterChipActive : {}) }} onClick={() => setTab("hero")}>Page d'accueil</button>
         <button style={{ ...styles.filterChip, ...(tab === "footer" ? styles.filterChipActive : {}) }} onClick={() => setTab("footer")}>Coordonnées</button>
@@ -103,8 +103,13 @@ export default function ContentSection() {
               <div style={styles.subHead}>{page.title}</div>
               {page.sections.map((s, i) => (
                 <div key={i} style={{ marginBottom: 14 }}>
-                  <div style={styles.fieldGroup}>
+                  <div style={styles.slideBlockHead}>
                     <div style={styles.fieldLabel}>Titre de la section</div>
+                    {page.sections.length > 1 && (
+                      <button style={styles.linkBtnSmall} onClick={() => removeSection(key, i)}>Supprimer</button>
+                    )}
+                  </div>
+                  <div style={styles.fieldGroup}>
                     <input
                       style={styles.input}
                       value={s.h}
@@ -128,6 +133,9 @@ export default function ContentSection() {
                   />
                 </div>
               ))}
+              <button style={{ ...styles.secondaryBtnSmall, padding: "11px 18px", fontSize: 13.5 }} onClick={() => addSection(key)}>
+                <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter une section</span>
+              </button>
             </div>
           ))}
         </div>
