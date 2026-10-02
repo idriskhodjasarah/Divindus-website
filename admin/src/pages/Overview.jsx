@@ -24,8 +24,7 @@ export default function Overview({ orders, products, customers }) {
   const revenueTrendPct = prev ? Math.round(((last - prev) / prev) * 100) : 0;
 
   const statusCounts = [
-    { label: "Confirmée", value: scopedOrders.filter((o) => !o.cancelled && o.statusIndex === 0).length, color: color.line },
-    { label: "Arrivée — à confirmer", value: scopedOrders.filter((o) => !o.cancelled && o.statusIndex === 1 && !o.received).length, color: color.amber },
+    { label: "Confirmée", value: scopedOrders.filter((o) => !o.cancelled && !o.received).length, color: color.line },
     { label: "Réceptionnée", value: scopedOrders.filter((o) => o.received).length, color: color.graphite },
     { label: "Annulée", value: cancelledCount, color: color.rust },
   ];
@@ -97,8 +96,8 @@ export default function Overview({ orders, products, customers }) {
           <div style={styles.activityList}>
             {recentOrders.map((o) => {
               const total = o.items.reduce((s, i) => s + i.price * i.qty, 0);
-              const label = o.cancelled ? "Annulée" : o.received ? "Réceptionnée" : o.statusIndex === 1 ? "Arrivée" : "Confirmée";
-              const dotColor = o.cancelled ? color.rust : o.received ? color.graphite : o.statusIndex === 1 ? color.amber : color.line;
+              const label = o.cancelled ? "Annulée" : o.received ? "Réceptionnée" : "Confirmée";
+              const dotColor = o.cancelled ? color.rust : o.received ? color.graphite : color.line;
               return (
                 <div key={o.id} style={styles.activityRow}>
                   <span style={{ ...styles.activityDot, background: dotColor }} />
