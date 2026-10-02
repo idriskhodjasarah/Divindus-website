@@ -1,6 +1,22 @@
+import { useState, useEffect } from "react";
 import { styles } from "../styles/styles";
+import { apiFetch } from "../api";
 
 export default function Footer({ onOpenLegal, onOpenSupport }) {
+  const [contact, setContact] = useState({
+    adresse: "Pavillon 12, Résidence la Butte des deux Bassins, Oued Roumane, Alger",
+    telephone: "+213 (0)21 00 00 00",
+    email: "contact@divindus.dz",
+  });
+
+  useEffect(() => {
+    apiFetch("/content")
+      .then(({ content }) => {
+        if (content.footer) setContact(content.footer);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <footer style={styles.footer}>
       <div style={styles.footerInner} className="footer-grid">
@@ -13,11 +29,9 @@ export default function Footer({ onOpenLegal, onOpenSupport }) {
         </div>
         <div>
           <div style={styles.footerColTitle}>Contact</div>
-          <p style={styles.footerText}>
-            Pavillon 12, Résidence la Butte des deux Bassins, Oued Roumane, Alger
-          </p>
-          <p style={styles.footerText}>+213 (0)21 00 00 00</p>
-          <p style={styles.footerText}>contact@divindus.dz</p>
+          <p style={styles.footerText}>{contact.adresse}</p>
+          <p style={styles.footerText}>{contact.telephone}</p>
+          <p style={styles.footerText}>{contact.email}</p>
           <button style={styles.footerLink} onClick={onOpenSupport}>Aide et contact</button>
         </div>
         <div>
