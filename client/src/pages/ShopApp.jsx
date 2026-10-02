@@ -96,8 +96,17 @@ export default function ShopApp({ onLogout, initialProfile }) {
     setView("quotes");
   };
 
-  const startQuoteOrder = (quote) => {
-    setCheckoutQuote(quote);
+  // Opening "Mes commandes": mark every order seen, so the header badge clears.
+  const openOrders = () => {
+    if (orders.some((o) => !o.seen_by_client)) {
+      setOrders((prev) => prev.map((o) => ({ ...o, seen_by_client: true })));
+      apiFetch("/orders/seen", { method: "POST", headers: authHeader() }).catch(() => {});
+    }
+    setView("orders");
+  };
+
+  const startQuoteOrder = (quote, qty) => {
+    setCheckoutQuote({ ...quote, qty: qty || 1 });
     setView("checkout");
   };
 
@@ -148,7 +157,7 @@ export default function ShopApp({ onLogout, initialProfile }) {
       // The server looks up every price itself: for a cart we only send ids and
       // quantities, for a quote we only send the quote's id.
       const payload = checkoutQuote
-        ? { quote_id: checkoutQuote.id, ...details }
+        ? { quote_id: checkoutQuote.id, quote_qty: checkoutQuote.qty, ...details }
         : { items: cartItems.map((i) => ({ id: i.id, qty: i.qty })), ...details };
 
       const { order } = await apiFetch("/orders", {
@@ -185,13 +194,6 @@ export default function ShopApp({ onLogout, initialProfile }) {
     return mapped;
   };
 
-  const advanceStatus = async (orderId) => {
-    const current = orders.find((o) => o.id === orderId);
-    const next = Math.min(current.statusIndex + 1, STATUS_STEPS.length - 1);
-    const updated = await patchOrder(orderId, { status_index: next });
-    pushNotification(`Votre commande ${updated.ref} ${STATUS_STEPS[next].note}`);
-  };
-
   const confirmReception = async (orderId) => {
     const updated = await patchOrder(orderId, { received: true });
     pushNotification(`Réception de la commande ${updated.ref} confirmée — merci d'avoir commandé chez DIVINDUS.`);
@@ -220,21 +222,21 @@ export default function ShopApp({ onLogout, initialProfile }) {
 
   // What the checkout page should show: the quote (one line at the quoted price) or the cart.
   const checkoutItems = checkoutQuote
-    ? [{ id: checkoutQuote.id, name: checkoutQuote.produit, qty: 1, price: checkoutQuote.reponse_prix }]
+    ? [{ id: checkoutQuote.id, name: checkoutQuote.produit, qty: checkoutQuote.qty, price: checkoutQuote.reponse_prix }]
     : cartItems;
-  const checkoutTotal = checkoutQuote ? checkoutQuote.reponse_prix : cartTotal;
+  const checkoutTotal = checkoutQuote ? checkoutQuote.reponse_prix * checkoutQuote.qty : cartTotal;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <TopBar
         cartCount={cartCount}
         unread={unread}
-        ordersCount={orders.length}
+        ordersCount={orders.filter((o) => !o.seen_by_client).length}
         quotesBadge={quotes.filter((q) => q.status === "répondu" && !q.seen_by_client).length}
         profile={profile}
         onCartClick={() => setCartOpen(true)}
         onNotifClick={() => { setNotifOpen(true); setUnread(0); }}
-        onOrdersClick={() => setView("orders")}
+        onOrdersClick={openOrders}
         onQuotesClick={openQuotes}
         onAccountClick={() => setView("account")}
         onLogoClick={() => setView("catalog")}
@@ -290,7 +292,6 @@ export default function ShopApp({ onLogout, initialProfile }) {
         {view === "orders" && !ordersLoading && (
           <OrdersList
             orders={orders}
-            onAdvance={advanceStatus}
             onConfirmReception={confirmReception}
             onCancel={cancelOrder}
             onCompleteRefund={completeRefund}
