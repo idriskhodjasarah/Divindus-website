@@ -87,8 +87,7 @@ useEffect(() => {
     const { order } = await apiFetch(`/orders/${id}`, {
       method: "PATCH",
       headers: authHeader(),
-      body: JSON.stringify({ refund_status: "remboursee" }),
-    });
+body: JSON.stringify({ refund_status: "remboursee", seen_by_client: false }),    });
     setOrders((prev) => prev.map((o) => (o.id === id ? mapOrder(order) : o)));
   };
 
