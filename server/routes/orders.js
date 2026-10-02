@@ -15,7 +15,7 @@ const { requireAuth } = require('../middleware/requireAuth');
 // editing a request in DevTools.
 // ---------------------------------------------------------------------------
 router.post('/', requireAuth, async (req, res) => {
-  const { items, quote_id, entreprise, nif, contact, telephone, wilaya, adresse, paiement } = req.body;
+  const { items, quote_id, quote_qty, entreprise, nif, contact, telephone, wilaya, adresse, paiement } = req.body;
 
   let lines = []; // { product_id, name, filiale, qty, price }
   let quote = null;
@@ -41,7 +41,8 @@ router.post('/', requireAuth, async (req, res) => {
     }
 
     quote = q;
-    lines = [{ product_id: q.product_id || null, name: q.produit, filiale, qty: 1, price: q.reponse_prix }];
+    const qty = Math.min(999, Math.max(1, parseInt(quote_qty, 10) || 1));
+    lines = [{ product_id: q.product_id || null, name: q.produit, filiale, qty, price: q.reponse_prix }];
   } else {
     // ---- Cart order --------------------------------------------------------
     if (!Array.isArray(items) || items.length === 0) {
@@ -121,7 +122,33 @@ router.get('/', requireAuth, async (req, res) => {
 // PATCH /orders/:id — update status fields (received, cancelled, refund_status...)
 // RLS lets the owning customer OR an admin update it, nobody else.
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// POST /orders/seen — the customer opened "Mes commandes": mark their own
+// orders as seen. This is a narrow, single-purpose write, so it's safe to let
+// any logged-in user call it on their own orders (RLS already limits it to
+// their own row_id anyway).
+// ---------------------------------------------------------------------------
+router.post('/seen', requireAuth, async (req, res) => {
+  const { error } = await req.supabase.from('orders').update({ seen_by_client: true }).eq('user_id', req.user.id);
+
+  if (error) {
+    console.error(error);
+    return res.status(500).json({ error: 'Impossible de mettre à jour les commandes.' });
+  }
+
+  res.json({ success: true });
+});
+
 router.patch('/:id', requireAuth, async (req, res) => {
+  // "remboursee" means the money has genuinely been sent back — only an admin
+  // confirms that, never the customer's own browser.
+  if (req.body.refund_status === 'remboursee') {
+    const { data: profile } = await req.supabase.from('profiles').select('is_admin').eq('id', req.user.id).single();
+    if (!profile?.is_admin) {
+      return res.status(403).json({ error: 'Seul un administrateur peut confirmer un remboursement.' });
+    }
+  }
+
   const { data, error } = await req.supabase
     .from('orders')
     .update(req.body)
