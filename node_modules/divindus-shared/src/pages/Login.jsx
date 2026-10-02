@@ -8,6 +8,8 @@ export default function Login({ onLogin, onRegister, onBack, onOpenResetDemo, re
   const [showPw, setShowPw] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [sent, setSent] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+  const [resetSending, setResetSending] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -108,29 +110,41 @@ export default function Login({ onLogin, onRegister, onBack, onOpenResetDemo, re
                 sera envoyé.
               </p>
               <AuthField icon={<Mail size={16} />} label="Adresse email">
-                <input style={styles.input} type="email" placeholder="vous@entreprise.dz" />
+                <input
+                  style={styles.input}
+                  type="email"
+                  placeholder="vous@entreprise.dz"
+                  value={resetEmail}
+                  onChange={(e) => setResetEmail(e.target.value)}
+                />
               </AuthField>
+              {error && <p style={styles.errorText}>{error}</p>}
               <button
-                style={{ ...styles.primaryBtn, width: "100%", marginTop: 8 }}
-                onClick={() => setSent(true)}
+                style={{ ...styles.primaryBtn, width: "100%", marginTop: 8, opacity: resetSending ? 0.6 : 1 }}
+                disabled={resetSending}
+                onClick={async () => {
+                  setError("");
+                  setResetSending(true);
+                  try {
+                    await apiFetch("/auth/forgot-password", {
+                      method: "POST",
+                      body: JSON.stringify({ email: resetEmail }),
+                    });
+                    setSent(true);
+                  } catch (err) {
+                    setError(err.message);
+                  } finally {
+                    setResetSending(false);
+                  }
+                }}
               >
-                Envoyer le lien
+                {resetSending ? "Envoi…" : "Envoyer le lien"}
               </button>
             </>
           ) : (
-            <>
-              <p style={styles.authSub}>
-                Un lien de réinitialisation a été envoyé. Vérifiez votre boîte mail.
-              </p>
-              <div style={styles.demoNote}>
-                <p style={{ margin: "0 0 8px" }}>
-                  Aperçu démo — dans le vrai produit, ceci se passe par email. Ici, simulez le clic sur le lien reçu :
-                </p>
-                <button style={styles.demoBtn} onClick={onOpenResetDemo}>
-                  Ouvrir le lien reçu par email (démo)
-                </button>
-              </div>
-            </>
+            <p style={styles.authSub}>
+              Un lien de réinitialisation a été envoyé. Vérifiez votre boîte mail — le lien vous ramènera directement sur cette page pour choisir un nouveau mot de passe.
+            </p>
           )}
           <button style={styles.linkBtn} onClick={() => { setForgot(false); setSent(false); }}>
             Retour à la connexion
