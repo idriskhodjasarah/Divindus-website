@@ -39,9 +39,6 @@ export default function LegalPage({ tab, setTab, onBack }) {
             <p style={styles.legalSectionText}>{s.p}</p>
           </div>
         ))}
-        <p style={styles.legalDisclaimer}>
-          Contenu de démonstration à faire valider par le service juridique de DIVINDUS avant toute mise en production.
-        </p>
       </div>
     </div>
   );
