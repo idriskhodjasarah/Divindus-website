@@ -78,11 +78,6 @@ export default function ContentSection() {
               <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Description</div><textarea style={styles.textarea} value={s.desc} onChange={(e) => updateSlide(i, "desc", e.target.value)} /></div>
             </div>
           ))}
-          <div style={{ display: "flex", gap: 10 }}>
-            <button style={styles.secondaryBtnSmall} onClick={addSlide}>
-              <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter une diapositive</span>
-            </button>
-          </div>
         </div>
       )}
 
@@ -142,9 +137,16 @@ export default function ContentSection() {
       )}
 
       {error && <p style={{ color: color.rust, fontSize: 12.5, marginBottom: 12 }}>{error}</p>}
-      <button style={{ ...styles.primaryBtn, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
-        {saving ? "Enregistrement…" : "Enregistrer"}
-      </button>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        {tab === "hero" && (
+          <button style={{ ...styles.secondaryBtnSmall, padding: "11px 18px", fontSize: 13.5 }} onClick={addSlide}>
+            <span style={{ display: "flex", alignItems: "center", gap: 6 }}><Plus size={14} /> Ajouter une diapositive</span>
+          </button>
+        )}
+        <button style={{ ...styles.primaryBtn, opacity: saving ? 0.6 : 1 }} onClick={save} disabled={saving}>
+          {saving ? "Enregistrement…" : "Enregistrer"}
+        </button>
+      </div>
       {saved && <p style={styles.savedNote}>Modifications enregistrées.</p>}
     </div>
   );
