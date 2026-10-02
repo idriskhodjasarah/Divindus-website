@@ -31,7 +31,7 @@ import {
   ClipboardList,
   Camera,
 } from "lucide-react";
-import { Landing, Login, styles, globalCss } from "divindus-shared";
+import { Landing, Login, styles, globalCss,apiFetch, authHeader } from "divindus-shared";
 import ResetPassword from "./pages/ResetPassword";
 import Register from "./pages/Register";
 import Verify from "./pages/Verify";
@@ -43,14 +43,30 @@ import SupportPage from "./pages/SupportPage";
 // ---------------------------------------------------------------------------
 
 export default function App() {
-  const [stage, setStage] = useState("landing"); // landing | login | register | verify | shop | legal | support
-  const [pending, setPending] = useState(null); // { contact }
+const [stage, setStage] = useState("checking");  const [pending, setPending] = useState(null); // { contact }
   const [profile, setProfile] = useState(null); // { prenom, nom, email, telephone, adresse }
   const [legalTab, setLegalTab] = useState("cgv");
   const [returnStage, setReturnStage] = useState("landing"); // where "back" goes from legal/support
   const [resetToken, setResetToken] = useState(null);
   const openLegal = (tab, from) => { setLegalTab(tab); setReturnStage(from); setStage("legal"); };
   const openSupport = (from) => { setReturnStage(from); setStage("support"); };
+  useEffect(() => {
+  const session = localStorage.getItem("divindus_session");
+  if (!session) {
+    setStage("landing");
+    return;
+  }
+  apiFetch("/auth/me", { headers: authHeader() })
+    .then(({ profile }) => {
+      setProfile(profile);
+      setStage("shop");
+    })
+    .catch(() => {
+      localStorage.removeItem("divindus_session");
+      localStorage.removeItem("divindus_profile");
+      setStage("landing");
+    });
+}, []);
   useEffect(() => {
   const hash = new URLSearchParams(window.location.hash.slice(1));
   if (hash.get("type") === "recovery" && hash.get("access_token")) {
@@ -62,7 +78,7 @@ export default function App() {
   return (
     <div style={styles.app}>
       <style>{globalCss}</style>
-
+      {stage === "checking" && null}
       {stage === "landing" && (
         <Landing
           onConnect={() => setStage("login")}
@@ -104,8 +120,16 @@ export default function App() {
       )}
 
       {stage === "shop" && (
-        <ShopApp onLogout={() => setStage("landing")} initialProfile={profile} />
-      )}
+  <ShopApp
+    onLogout={() => {
+      localStorage.removeItem("divindus_session");
+      localStorage.removeItem("divindus_profile");
+      setProfile(null);
+      setStage("landing");
+    }}
+    initialProfile={profile}
+  />
+)}
 
       {stage === "legal" && (
         <LegalPage tab={legalTab} setTab={setLegalTab} onBack={() => setStage(returnStage)} />
