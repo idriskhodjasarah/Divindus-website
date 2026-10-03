@@ -73,7 +73,10 @@ export default function Account({ profile, onSave, onBack }) {
             </span>
           </button>
           {form.photo && (
-            <button style={styles.linkBtnSmall} onClick={() => setForm((f) => ({ ...f, photo: null }))}>
+            <button
+              style={{ ...styles.linkBtnSmall, color: color.rust, display: "block", marginTop: 8 }}
+              onClick={() => setForm((f) => ({ ...f, photo: null }))}
+            >
               Supprimer la photo
             </button>
           )}
