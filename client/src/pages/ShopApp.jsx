@@ -15,7 +15,6 @@ import SupportPage from "./SupportPage";
 
 // The DB uses snake_case and nests line items as "order_items"; the UI expects
 // camelCase and a flat "items" array with a "total" already computed. Map once, here.
-// Lines created from a quote have no product_id, so their reference shows "DEVIS".
 function mapOrder(o) {
   const items = (o.order_items || []).map((i) => ({
     id: i.product_id || "DEVIS",
@@ -34,6 +33,12 @@ function mapOrder(o) {
   };
 }
 
+// Notifications are stored with a raw timestamp; the drawer expects a
+// ready-to-display "time" string, same format the old local version used.
+function mapNotification(n) {
+  return { ...n, time: new Date(n.created_at).toLocaleTimeString("fr-DZ", { hour: "2-digit", minute: "2-digit" }) };
+}
+
 export default function ShopApp({ onLogout, initialProfile }) {
   const [view, setView] = useState("catalog");
   const [category, setCategory] = useState("all");
@@ -49,7 +54,6 @@ export default function ShopApp({ onLogout, initialProfile }) {
   useEffect(() => {
     apiFetch("/products")
       .then(({ products }) => {
-        // The DB column is "description"; the existing UI expects "desc" — map it once here.
         setProducts(products.filter((p) => p.active).map((p) => ({ ...p, desc: p.description })));
       })
       .catch((err) => setProductsError(err.message))
@@ -59,7 +63,7 @@ export default function ShopApp({ onLogout, initialProfile }) {
   // ---- Orders -------------------------------------------------------------
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
-  const [activeOrderId, setActiveOrderId] = useState(null); // which order confirmation is currently showing
+  const [activeOrderId, setActiveOrderId] = useState(null);
 
   useEffect(() => {
     apiFetch("/orders", { headers: authHeader() })
@@ -68,10 +72,19 @@ export default function ShopApp({ onLogout, initialProfile }) {
       .finally(() => setOrdersLoading(false));
   }, []);
 
+  // Opening "Mes commandes": mark every order seen, so the header badge clears.
+  const openOrders = () => {
+    if (orders.some((o) => !o.seen_by_client)) {
+      setOrders((prev) => prev.map((o) => ({ ...o, seen_by_client: true })));
+      apiFetch("/orders/seen", { method: "POST", headers: authHeader() }).catch(() => {});
+    }
+    setView("orders");
+  };
+
   // ---- Quotes -------------------------------------------------------------
   const [quotes, setQuotes] = useState([]);
-  const [newQuoteIds, setNewQuoteIds] = useState([]); // answered quotes the customer hadn't seen when they opened the page
-  const [checkoutQuote, setCheckoutQuote] = useState(null); // set when checking out from a quote instead of the cart
+  const [newQuoteIds, setNewQuoteIds] = useState([]);
+  const [checkoutQuote, setCheckoutQuote] = useState(null);
 
   const fetchQuotes = () => apiFetch("/quotes", { headers: authHeader() }).then(({ quotes }) => quotes);
 
@@ -79,8 +92,6 @@ export default function ShopApp({ onLogout, initialProfile }) {
     fetchQuotes().then(setQuotes).catch(() => {});
   }, []);
 
-  // Opening "Mes devis": fetch fresh data, remember which answers are new (for the
-  // NOUVEAU tag), then mark everything as seen so the header badge clears.
   const openQuotes = async () => {
     try {
       const fresh = await fetchQuotes();
@@ -96,28 +107,41 @@ export default function ShopApp({ onLogout, initialProfile }) {
     setView("quotes");
   };
 
-  // Opening "Mes commandes": mark every order seen, so the header badge clears.
-  const openOrders = () => {
-    if (orders.some((o) => !o.seen_by_client)) {
-      setOrders((prev) => prev.map((o) => ({ ...o, seen_by_client: true })));
-      apiFetch("/orders/seen", { method: "POST", headers: authHeader() }).catch(() => {});
-    }
-    setView("orders");
-  };
-
   const startQuoteOrder = (quote, qty) => {
     setCheckoutQuote({ ...quote, qty: qty || 1 });
     setView("checkout");
   };
 
-  // ---- Profile, notifications, legal -------------------------------------
-  const [profile, setProfile] = useState(
-    initialProfile || { prenom: "", nom: "", email: "", telephone: "", adresse: "", photo: null }
-  );
-
+  // ---- Notifications --------------------------------------------------------
+  // Real, persisted rows now — nothing is invented client-side anymore. Every
+  // event that matters (order confirmed, reception confirmed, refund done,
+  // quote answered...) is written by the server at the moment it happens.
   const [notifications, setNotifications] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
   const [unread, setUnread] = useState(0);
+
+  const loadNotifications = () =>
+    apiFetch("/notifications", { headers: authHeader() })
+      .then(({ notifications }) => {
+        const mapped = notifications.map(mapNotification);
+        setNotifications(mapped);
+        setUnread(mapped.filter((n) => !n.seen).length);
+      })
+      .catch(() => {});
+
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  // Opening the panel: fetch fresh (so anything new shows up immediately),
+  // THEN mark everything seen. The notifications themselves never disappear —
+  // only the unread count resets to 0.
+  const openNotifications = async () => {
+    setNotifOpen(true);
+    await loadNotifications();
+    setUnread(0);
+    apiFetch("/notifications/seen", { method: "POST", headers: authHeader() }).catch(() => {});
+  };
 
   const [legalTab, setLegalTab] = useState("cgv");
 
@@ -143,19 +167,9 @@ export default function ShopApp({ onLogout, initialProfile }) {
   const changeQty = (id, delta) =>
     setCart((c) => ({ ...c, [id]: Math.max(0, (c[id] || 0) + delta) }));
 
-  const pushNotification = (text) => {
-    setNotifications((n) => [
-      { id: Date.now() + Math.random(), text, time: new Date().toLocaleTimeString("fr-DZ", { hour: "2-digit", minute: "2-digit" }) },
-      ...n,
-    ]);
-    setUnread((u) => u + 1);
-  };
-
   // ---- Placing an order (from the cart OR from an answered quote) --------
   const placeOrder = async (details) => {
     try {
-      // The server looks up every price itself: for a cart we only send ids and
-      // quantities, for a quote we only send the quote's id.
       const payload = checkoutQuote
         ? { quote_id: checkoutQuote.id, quote_qty: checkoutQuote.qty, ...details }
         : { items: cartItems.map((i) => ({ id: i.id, qty: i.qty })), ...details };
@@ -169,17 +183,19 @@ export default function ShopApp({ onLogout, initialProfile }) {
       const mapped = mapOrder(order);
       setOrders((prev) => [mapped, ...prev]);
       setActiveOrderId(mapped.id);
-      pushNotification(`Votre commande ${mapped.ref} ${STATUS_STEPS[0].note}`);
+      loadNotifications();
 
       if (checkoutQuote) {
         setCheckoutQuote(null);
-        fetchQuotes().then(setQuotes).catch(() => {}); // so the quote shows "Commande passée"
+        fetchQuotes().then(setQuotes).catch(() => {});
       } else {
         setCart({});
       }
       setView("confirmation");
     } catch (err) {
-      pushNotification(`Erreur lors de la commande : ${err.message}`);
+      // No real notification exists for a failed attempt — show it inline instead.
+      setProductsError(""); // no-op, kept for clarity that this isn't a product error
+      alert(`Erreur lors de la commande : ${err.message}`);
     }
   };
 
@@ -191,40 +207,31 @@ export default function ShopApp({ onLogout, initialProfile }) {
     });
     const mapped = mapOrder(order);
     setOrders((prev) => prev.map((o) => (o.id === orderId ? mapped : o)));
+    loadNotifications();
     return mapped;
   };
 
-  const confirmReception = async (orderId) => {
-    const updated = await patchOrder(orderId, { received: true });
-    pushNotification(`Réception de la commande ${updated.ref} confirmée — merci d'avoir commandé chez DIVINDUS.`);
-  };
+  const confirmReception = (orderId) => patchOrder(orderId, { received: true });
 
-  // Bank transfer isn't charged until the proforma is settled, so cancelling is instant.
-  // Card payments are charged immediately, so cancelling starts a refund instead of an instant undo.
-  const cancelOrder = async (orderId) => {
+  const cancelOrder = (orderId) => {
     const current = orders.find((o) => o.id === orderId);
-    if (current.paiement === "carte") {
-      const updated = await patchOrder(orderId, { refund_status: "en_cours" });
-      pushNotification(`Demande d'annulation reçue pour la commande ${updated.ref}. Remboursement sous 5 à 7 jours ouvrés.`);
-    } else {
-      const updated = await patchOrder(orderId, { cancelled: true });
-      pushNotification(`Votre commande ${updated.ref} a été annulée. Aucun paiement n'ayant encore été prélevé, aucun remboursement n'est nécessaire.`);
-    }
+    return current.paiement === "carte"
+      ? patchOrder(orderId, { refund_status: "en_cours" })
+      : patchOrder(orderId, { cancelled: true });
   };
 
-  // Demo-only: simulates the bank confirming the refund a few days later.
-  const completeRefund = async (orderId) => {
-    const updated = await patchOrder(orderId, { cancelled: true, refund_status: "remboursee" });
-    pushNotification(`Remboursement de la commande ${updated.ref} effectué.`);
-  };
+  const completeRefund = (orderId) => patchOrder(orderId, { cancelled: true, refund_status: "remboursee" });
 
   const activeOrder = orders.find((o) => o.id === activeOrderId) || null;
 
-  // What the checkout page should show: the quote (one line at the quoted price) or the cart.
   const checkoutItems = checkoutQuote
     ? [{ id: checkoutQuote.id, name: checkoutQuote.produit, qty: checkoutQuote.qty, price: checkoutQuote.reponse_prix }]
     : cartItems;
   const checkoutTotal = checkoutQuote ? checkoutQuote.reponse_prix * checkoutQuote.qty : cartTotal;
+
+  const [profile, setProfile] = useState(
+    initialProfile || { prenom: "", nom: "", email: "", telephone: "", adresse: "", photo: null }
+  );
 
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
@@ -235,7 +242,7 @@ export default function ShopApp({ onLogout, initialProfile }) {
         quotesBadge={quotes.filter((q) => q.status === "répondu" && !q.seen_by_client).length}
         profile={profile}
         onCartClick={() => setCartOpen(true)}
-        onNotifClick={() => { setNotifOpen(true); setUnread(0); }}
+        onNotifClick={openNotifications}
         onOrdersClick={openOrders}
         onQuotesClick={openQuotes}
         onAccountClick={() => setView("account")}
@@ -333,7 +340,7 @@ export default function ShopApp({ onLogout, initialProfile }) {
           onChangeQty={changeQty}
           onCheckout={() => {
             setCartOpen(false);
-            setCheckoutQuote(null); // make sure a leftover quote never replaces the cart
+            setCheckoutQuote(null);
             setView("checkout");
           }}
         />

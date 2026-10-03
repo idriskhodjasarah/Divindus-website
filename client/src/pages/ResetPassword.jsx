@@ -1,14 +1,16 @@
 import { useState } from "react";
 import { ShieldCheck, Check, Lock, Eye, EyeOff } from "lucide-react";
-import { styles, AuthShell, AuthField } from "divindus-shared";
-export default function ResetPassword({ onDone }) {
+import { styles, AuthShell, AuthField, apiFetch } from "divindus-shared";
+
+export default function ResetPassword({ accessToken, onDone }) {
   const [showPw, setShowPw] = useState(false);
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  const submit = () => {
+  const submit = async () => {
     if (!password || password.length < 6) {
       setError("Le mot de passe doit contenir au moins 6 caractères.");
       return;
@@ -18,7 +20,18 @@ export default function ResetPassword({ onDone }) {
       return;
     }
     setError("");
-    setDone(true);
+    setLoading(true);
+    try {
+      await apiFetch("/auth/reset-password", {
+        method: "POST",
+        body: JSON.stringify({ access_token: accessToken, password }),
+      });
+      setDone(true);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -59,8 +72,12 @@ export default function ResetPassword({ onDone }) {
 
           {error && <p style={styles.errorText}>{error}</p>}
 
-          <button style={{ ...styles.primaryBtn, width: "100%", marginTop: 8 }} onClick={submit}>
-            Réinitialiser le mot de passe
+          <button
+            style={{ ...styles.primaryBtn, width: "100%", marginTop: 8, opacity: loading ? 0.6 : 1 }}
+            onClick={submit}
+            disabled={loading}
+          >
+            {loading ? "Enregistrement…" : "Réinitialiser le mot de passe"}
           </button>
         </>
       ) : (

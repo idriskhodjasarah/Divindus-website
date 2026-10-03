@@ -1,4 +1,4 @@
-import { PackageCheck } from "lucide-react";
+import { ChevronLeft, PackageCheck } from "lucide-react";
 import { styles, color, fmt } from "divindus-shared";
 
 export default function OrdersList({ orders, onConfirmReception, onCancel, onCompleteRefund, onShopMore }) {
@@ -7,6 +7,7 @@ export default function OrdersList({ orders, onConfirmReception, onCancel, onCom
 
   return (
     <main style={styles.ordersWrap}>
+      <button style={styles.backBtn} onClick={onShopMore}><ChevronLeft size={16} /> Retour au catalogue</button>
       <h2 style={styles.sectionTitle}>Mes commandes</h2>
 
       {orders.length === 0 ? (

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Minus, Plus } from "lucide-react";
+import { ChevronLeft, Check, Minus, Plus } from "lucide-react";
 import { styles, color, fmt } from "divindus-shared";
 
 export default function QuotesList({ quotes, newIds, onOrder, onBack }) {
@@ -13,6 +13,7 @@ export default function QuotesList({ quotes, newIds, onOrder, onBack }) {
 
   return (
     <main style={styles.ordersWrap}>
+      <button style={styles.backBtn} onClick={onBack}><ChevronLeft size={16} /> Retour au catalogue</button>
       <h2 style={styles.sectionTitle}>Mes devis</h2>
 
       {quotes.length === 0 ? (
