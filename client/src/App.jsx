@@ -50,6 +50,7 @@ const [stage, setStage] = useState("checking");  const [pending, setPending] = u
   const [resetToken, setResetToken] = useState(null);
   const openLegal = (tab, from) => { setLegalTab(tab); setReturnStage(from); setStage("legal"); };
   const openSupport = (from) => { setReturnStage(from); setStage("support"); };
+ const [resetLinkError, setResetLinkError] = useState("");
   useEffect(() => {
   const session = localStorage.getItem("divindus_session");
   if (!session) {
@@ -67,12 +68,24 @@ const [stage, setStage] = useState("checking");  const [pending, setPending] = u
       setStage("landing");
     });
 }, []);
-  useEffect(() => {
+ useEffect(() => {
   const hash = new URLSearchParams(window.location.hash.slice(1));
+
   if (hash.get("type") === "recovery" && hash.get("access_token")) {
     setResetToken(hash.get("access_token"));
     setStage("reset");
-    window.history.replaceState(null, "", window.location.pathname); // clean the URL
+    window.history.replaceState(null, "", window.location.pathname);
+    return;
+  }
+
+  if (hash.get("error")) {
+    setResetLinkError(
+      hash.get("error_code") === "otp_expired"
+        ? "Ce lien a expiré ou a déjà été utilisé. Merci de demander un nouveau lien de réinitialisation."
+        : "Ce lien n'est plus valide. Merci de demander un nouveau lien de réinitialisation."
+    );
+    setStage("login");
+    window.history.replaceState(null, "", window.location.pathname);
   }
 }, []);
   return (
@@ -93,6 +106,7 @@ const [stage, setStage] = useState("checking");  const [pending, setPending] = u
           onRegister={() => setStage("register")}
           onBack={() => setStage("landing")}
           onOpenResetDemo={() => setStage("reset")}
+          initialError={resetLinkError}        
         />
       )}
 

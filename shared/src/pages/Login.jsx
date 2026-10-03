@@ -4,16 +4,14 @@ import { styles } from "../styles/styles.js";
 import { AuthShell, AuthField } from "../components/AuthShell.jsx";
 import { apiFetch } from "../api.js";
 
-export default function Login({ onLogin, onRegister, onBack, onOpenResetDemo, requireAdmin }) {
-  const [showPw, setShowPw] = useState(false);
+export default function Login({ onLogin, onRegister, onBack, onOpenResetDemo, requireAdmin, initialError }) {  const [showPw, setShowPw] = useState(false);
   const [forgot, setForgot] = useState(false);
   const [sent, setSent] = useState(false);
   const [resetEmail, setResetEmail] = useState("");
   const [resetSending, setResetSending] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+const [error, setError] = useState(initialError || "");  const [loading, setLoading] = useState(false);
 
   const submit = async () => {
     setError("");
