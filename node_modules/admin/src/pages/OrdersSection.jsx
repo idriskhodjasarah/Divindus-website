@@ -10,7 +10,7 @@ export default function OrdersSection({ orders, query, setQuery, loading }) {
 
   const filtered = orders.filter((o) => {
     const matchQuery = query.trim() === "" || o.ref.toLowerCase().includes(query.toLowerCase()) || o.client.toLowerCase().includes(query.toLowerCase());
-    const status = o.cancelled ? "cancelled" : o.received ? "received" : o.statusIndex === 1 ? "arrived" : "confirmed";
+    const status = o.cancelled ? "cancelled" : o.received ? "received" : "confirmed";
     const matchStatus = statusFilter === "all" || statusFilter === status;
     return matchQuery && matchStatus;
   });
@@ -19,7 +19,7 @@ export default function OrdersSection({ orders, query, setQuery, loading }) {
   const toggleAll = () => setSelected(allSelected ? [] : filtered.map((o) => o.id));
   const toggleOne = (id) => setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const statusLabel = (o) => (o.cancelled ? "Annulée" : o.received ? "Réceptionnée" : o.statusIndex === 1 ? "Arrivée — à confirmer" : "Confirmée");
+  const statusLabel = (o) => (o.cancelled ? "Annulée" : o.received ? "Réceptionnée" : "Confirmée");
 
   const exportRows = (list) => list.map((o) => [
     o.ref, o.client, o.email, o.telephone, o.wilaya,
@@ -34,9 +34,11 @@ export default function OrdersSection({ orders, query, setQuery, loading }) {
   const exportLabel = selected.length > 0 ? `(${selected.length} sélectionnée${selected.length > 1 ? "s" : ""})` : `(${filtered.length})`;
   const exportCsv = () => downloadCsv(selected.length > 0 ? "commandes-selection.csv" : "commandes.csv", csvHeaders, exportRows(exportTarget));
   const exportJson = () => downloadJson(selected.length > 0 ? "commandes-selection.json" : "commandes.json", exportTarget);
-    if (loading) {
-  return <p style={styles.emptyState}>Chargement des commandes…</p>;
-}
+
+  if (loading) {
+    return <p style={styles.emptyState}>Chargement des commandes…</p>;
+  }
+
   return (
     <div>
       <div style={styles.searchWrap}>
@@ -51,7 +53,6 @@ export default function OrdersSection({ orders, query, setQuery, loading }) {
           {[
             { k: "all", l: "Toutes" },
             { k: "confirmed", l: "Confirmée" },
-            { k: "arrived", l: "Arrivée" },
             { k: "received", l: "Réceptionnée" },
             { k: "cancelled", l: "Annulée" },
           ].map((f) => (
