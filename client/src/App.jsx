@@ -48,15 +48,48 @@ const [stage, setStage] = useState("checking");  const [pending, setPending] = u
   const [legalTab, setLegalTab] = useState("cgv");
   const [returnStage, setReturnStage] = useState("landing"); // where "back" goes from legal/support
   const [resetToken, setResetToken] = useState(null);
+  const recoveryHandled = useRef(false);
   const openLegal = (tab, from) => { setLegalTab(tab); setReturnStage(from); setStage("legal"); };
   const openSupport = (from) => { setReturnStage(from); setStage("support"); };
  const [resetLinkError, setResetLinkError] = useState("");
-  useEffect(() => {
+useEffect(() => {
+ // Prevent the recovery flow from being processed twice
+  if (recoveryHandled.current) {
+    return;
+  }
+
+  // First check if this is a password recovery link
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+
+ if (hash.get("type") === "recovery" && hash.get("access_token")) {
+  recoveryHandled.current = true;
+
+  setResetToken(hash.get("access_token"));
+  setStage("reset");
+
+  window.history.replaceState(null, "", window.location.pathname);
+  return;
+}
+
+  if (hash.get("error")) {
+    setResetLinkError(
+      hash.get("error_code") === "otp_expired"
+        ? "Ce lien a expiré ou a déjà été utilisé. Merci de demander un nouveau lien de réinitialisation."
+        : "Ce lien n'est plus valide. Merci de demander un nouveau lien de réinitialisation."
+    );
+    setStage("login");
+    window.history.replaceState(null, "", window.location.pathname);
+    return;
+  }
+
+  // Otherwise, do the normal session check
   const session = localStorage.getItem("divindus_session");
+
   if (!session) {
     setStage("landing");
     return;
   }
+
   apiFetch("/auth/me", { headers: authHeader() })
     .then(({ profile }) => {
       setProfile(profile);
@@ -68,26 +101,7 @@ const [stage, setStage] = useState("checking");  const [pending, setPending] = u
       setStage("landing");
     });
 }, []);
- useEffect(() => {
-  const hash = new URLSearchParams(window.location.hash.slice(1));
 
-  if (hash.get("type") === "recovery" && hash.get("access_token")) {
-    setResetToken(hash.get("access_token"));
-    setStage("reset");
-    window.history.replaceState(null, "", window.location.pathname);
-    return;
-  }
-
-  if (hash.get("error")) {
-    setResetLinkError(
-      hash.get("error_code") === "otp_expired"
-        ? "Ce lien a expiré ou a déjà été utilisé. Merci de demander un nouveau lien de réinitialisation."
-        : "Ce lien n'est plus valide. Merci de demander un nouveau lien de réinitialisation."
-    );
-    setStage("login");
-    window.history.replaceState(null, "", window.location.pathname);
-  }
-}, []);
   return (
     <div style={styles.app}>
       <style>{globalCss}</style>
