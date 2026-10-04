@@ -1,12 +1,35 @@
 import { useState } from "react";
 import { ChevronLeft, Phone, Mail, MapPin } from "lucide-react";
 import { styles, color, FAQ_ITEMS } from "divindus-shared";
+import { apiFetch, authHeader } from "divindus-shared";
 export default function SupportPage({ onBack }) {
   const [openFaq, setOpenFaq] = useState(null);
-  const [form, setForm] = useState({ nom: "", email: "", sujet: "", message: "" });
-  const [sent, setSent] = useState(false);
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const [form, setForm] = useState({ sujet: "", message: "" });
+const [sent, setSent] = useState(false);
+const [error, setError] = useState("");
+const [sending, setSending] = useState(false);
+const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
 
+const submit = async () => {
+  if (!form.sujet || !form.message) {
+    setError("Merci de remplir le sujet et le message.");
+    return;
+  }
+  setError("");
+  setSending(true);
+  try {
+    await apiFetch("/messages", {
+      method: "POST",
+      headers: authHeader(),
+      body: JSON.stringify(form),
+    });
+    setSent(true);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setSending(false);
+  }
+};
   return (
     <div style={styles.legalPage}>
       <div style={styles.legalWrap}>
@@ -40,13 +63,12 @@ export default function SupportPage({ onBack }) {
           <div style={styles.demoNote}>Votre message a été envoyé. Notre équipe vous répondra sous peu.</div>
         ) : (
           <>
-            <div className="field-row" style={styles.fieldRow}>
-              <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Nom</div><input style={styles.input} value={form.nom} onChange={set("nom")} /></div>
-              <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Email</div><input style={styles.input} type="email" value={form.email} onChange={set("email")} /></div>
-            </div>
             <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Sujet</div><input style={styles.input} value={form.sujet} onChange={set("sujet")} placeholder="Ex : Question sur ma commande DVX-..." /></div>
             <div style={styles.fieldGroup}><div style={styles.fieldLabel}>Message</div><textarea style={styles.textarea} value={form.message} onChange={set("message")} /></div>
-            <button style={styles.primaryBtn} onClick={() => setSent(true)}>Envoyer</button>
+             { error && <p style={styles.errorText}>{error}</p>}
+              <button style={{ ...styles.primaryBtn, opacity: sending ? 0.6 : 1 }} onClick={submit} disabled={sending}>
+              {sending ? "Envoi…" : "Envoyer"}
+             </button>
           </>
         )}
       </div>
