@@ -1,15 +1,27 @@
 import { useState } from "react";
 import { ChevronLeft, Building2, Truck, Landmark, CreditCard } from "lucide-react";
-import { styles, fmt, AuthField } from "divindus-shared";
+import { styles, fmt, AuthField, isValidPhone, isValidAddress, PHONE_ERROR, ADDRESS_ERROR } from "divindus-shared";
 import PayOption from "../components/PayOption";
 
 export default function Checkout({ items, total, hasQuoteOnly, onBack, onSubmit }) {
   const [form, setForm] = useState({
     entreprise: "", nif: "", contact: "", telephone: "", wilaya: "", adresse: "", paiement: "virement",
   });
+  const [validationError, setValidationError] = useState("");
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const isValid = form.entreprise && form.contact && form.telephone && form.wilaya && form.adresse;
-
+  const submit = () => {
+  if (!isValidPhone(form.telephone)) {
+    setValidationError(PHONE_ERROR);
+    return;
+  }
+  if (!isValidAddress(form.adresse)) {
+    setValidationError(ADDRESS_ERROR);
+    return;
+  }
+  setValidationError("");
+  onSubmit(form);
+};
   return (
     <main style={styles.checkoutWrap}>
       <button style={styles.backBtn} onClick={onBack}><ChevronLeft size={16} /> Retour au catalogue</button>
@@ -45,11 +57,12 @@ export default function Checkout({ items, total, hasQuoteOnly, onBack, onSubmit 
             <PayOption icon={<Landmark size={18} />} label="Virement bancaire" sub="Facture pro forma envoyée sous 24h" active={form.paiement === "virement"} onClick={() => setForm((f) => ({ ...f, paiement: "virement" }))} />
             <PayOption icon={<CreditCard size={18} />} label="Carte CIB / Edahabia" sub="Paiement sécurisé en ligne" active={form.paiement === "carte"} onClick={() => setForm((f) => ({ ...f, paiement: "carte" }))} />
           </div>
-          {hasQuoteOnly && (
-            <p style={styles.noteBox}>
-              Un ou plusieurs articles de votre commande sont « sur devis ». Un chargé d'affaires DIVINDUS vous contactera pour confirmer le prix final avant tout paiement.
-            </p>
-          )}
+          {validationError && <p style={styles.errorText}>{validationError}</p>}
+{hasQuoteOnly && (
+  <p style={styles.noteBox}>
+    Un ou plusieurs articles de votre commande sont « sur devis ». Un chargé d'affaires DIVINDUS vous contactera pour confirmer le prix final avant tout paiement.
+  </p>
+)}
         </div>
 
         <aside style={styles.summaryCard}>
@@ -65,8 +78,7 @@ export default function Checkout({ items, total, hasQuoteOnly, onBack, onSubmit 
             <span>Total estimé</span>
             <span>{fmt(total)}</span>
           </div>
-          <button style={{ ...styles.primaryBtn, width: "100%", opacity: isValid ? 1 : 0.5 }} disabled={!isValid} onClick={() => onSubmit(form)}>
-            Confirmer la commande
+<button style={{ ...styles.primaryBtn, width: "100%", opacity: isValid ? 1 : 0.5 }} disabled={!isValid} onClick={submit}>            Confirmer la commande
           </button>
         </aside>
       </div>
