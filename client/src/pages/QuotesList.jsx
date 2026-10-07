@@ -43,7 +43,7 @@ export default function QuotesList({ quotes, newIds, onOrder, onBack }) {
                     </div>
                     <div style={styles.orderCardDate}>Demandé le {dateFmt(q.created_at)}</div>
                   </div>
-                  <div style={{ ...styles.orderStatusBadge, ...(answered ? styles.orderStatusBadgeDone : {}) }}>
+                  <div style={{ ...styles.orderStatusBadge, ...(answered ? styles.orderStatusBadgeDone : {}), fontSize: 14, padding: "7px 14px" }}>
                     {answered ? "Répondu" : "En attente"}
                   </div>
                 </div>
