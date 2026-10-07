@@ -3,6 +3,7 @@ import { User, Phone, Mail, MapPin, Lock } from "lucide-react";
 import { styles } from "divindus-shared";
 import { AuthShell, AuthField } from "divindus-shared";
 import { apiFetch } from "divindus-shared"
+import { isValidPhone, isValidAddress, PHONE_ERROR, ADDRESS_ERROR } from "divindus-shared";
 export default function Register({ onSubmit, onBack }) {
   const [form, setForm] = useState({
     prenom: "",
@@ -25,6 +26,14 @@ export default function Register({ onSubmit, onBack }) {
       setError("Merci de remplir tous les champs.");
       return;
     }
+    if (!isValidPhone(form.telephone)) {
+  setError(PHONE_ERROR);
+  return;
+}
+if (!isValidAddress(form.adresse)) {
+  setError(ADDRESS_ERROR);
+  return;
+}
     if (form.password !== form.confirm) {
       setError("Les mots de passe ne correspondent pas.");
       return;
