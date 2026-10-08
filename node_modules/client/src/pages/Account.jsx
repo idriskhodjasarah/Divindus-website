@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { ChevronLeft, Camera, User, Phone, Mail, MapPin } from "lucide-react";
-import { styles, color, AuthField, apiFetch, authHeader } from "divindus-shared";
-
+import { styles, color, AuthField, apiFetch, authHeader, isValidPhone, isValidAddress, PHONE_ERROR, ADDRESS_ERROR } from "divindus-shared";
 export default function Account({ profile, onSave, onBack }) {
   const [form, setForm] = useState(profile);
   const [saved, setSaved] = useState(false);
@@ -33,9 +32,17 @@ export default function Account({ profile, onSave, onBack }) {
   };
 
   const save = async () => {
-    setError("");
-    setSaving(true);
-    try {
+  setError("");
+  if (!isValidPhone(form.telephone)) {
+    setError(PHONE_ERROR);
+    return;
+  }
+  if (!isValidAddress(form.adresse)) {
+    setError(ADDRESS_ERROR);
+    return;
+  }
+  setSaving(true);
+  try {
       const { profile: updated } = await apiFetch("/auth/profile", {
         method: "PATCH",
         headers: authHeader(),
@@ -54,9 +61,6 @@ export default function Account({ profile, onSave, onBack }) {
     <main style={styles.accountWrap}>
       <button style={styles.backBtn} onClick={onBack}><ChevronLeft size={16} /> Retour au catalogue</button>
       <h2 style={styles.sectionTitle}>Mon compte</h2>
-      <p style={{ fontSize: 13.5, color: color.inkSoft, marginBottom: 24 }}>
-        Ces informations peuvent être pré-remplies automatiquement lors de vos prochaines commandes.
-      </p>
 
       <div style={styles.avatarRow}>
         <div style={styles.avatarCircle}>
@@ -87,9 +91,6 @@ export default function Account({ profile, onSave, onBack }) {
             style={{ display: "none" }}
             onChange={handlePhotoChange}
           />
-          <p style={styles.avatarNote}>
-            Visible uniquement par le livreur, pour vous identifier lors de la remise de votre colis.
-          </p>
         </div>
       </div>
 
