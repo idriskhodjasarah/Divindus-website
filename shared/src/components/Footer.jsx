@@ -18,7 +18,7 @@ export default function Footer({ onOpenLegal, onOpenSupport }) {
   }, []);
 
   return (
-    <footer style={styles.footer}>
+    <footer id="contact" style={styles.footer}>
       <div style={styles.footerInner} className="footer-grid">
         <div>
           <div style={styles.logoText}>DIVINDUS</div>
