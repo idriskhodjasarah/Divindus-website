@@ -57,8 +57,7 @@ router.get('/', requireAuth, async (req, res) => {
 // ---------------------------------------------------------------------------
 // POST /quotes/seen — the customer opened "Mes devis": mark their answered
 // quotes as seen. Uses the admin client so we can allow changing ONLY this one
-// flag, on ONLY the caller's own quotes — customers still have no direct
-// permission to update quotes (otherwise they could edit the admin's price).
+// flag, on ONLY the caller's own quotes.
 // ---------------------------------------------------------------------------
 router.post('/seen', requireAuth, async (req, res) => {
   const { error } = await supabaseAdmin
@@ -77,7 +76,7 @@ router.post('/seen', requireAuth, async (req, res) => {
 
 // ---------------------------------------------------------------------------
 // PATCH /quotes/:id — admin answers a quote request (enforced by RLS).
-// Answering resets "seen" so the customer gets a fresh notification badge.
+// Answering resets "seen" and creates a notification for the customer.
 // ---------------------------------------------------------------------------
 router.patch('/:id', requireAuth, async (req, res) => {
   const { reponse_prix, reponse_message } = req.body;
@@ -93,6 +92,14 @@ router.patch('/:id', requireAuth, async (req, res) => {
     console.error(error);
     return res.status(403).json({ error: 'Action réservée aux administrateurs.' });
   }
+
+  // Notification belongs to the CUSTOMER, so use the admin client to insert
+  // it on their behalf — the admin's own session has no permission to write
+  // rows for someone else's user_id.
+  await supabaseAdmin.from('notifications').insert({
+    user_id: data.user_id,
+    text: `Votre demande de devis pour "${data.produit}" a reçu une réponse.`,
+  });
 
   res.json({ quote: data });
 });
