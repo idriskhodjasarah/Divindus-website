@@ -2,17 +2,27 @@ import { useState, useEffect } from "react";
 import { Layers, CreditCard, FileText } from "lucide-react";
 import { styles } from "../styles/styles";
 import { SLIDES, PARTNERS, PRODUCTS, fmt } from "../data/data";
+import { apiFetch } from "../api";
 import PublicHeader from "../components/PublicHeader";
 import Footer from "../components/Footer";
 import { Feature, Stat } from "../components/FeatureAndStat";
 
 export default function Landing({ onConnect, onOpenLegal, onOpenSupport }) {
   const [slide, setSlide] = useState(0);
+  const [slides, setSlides] = useState(SLIDES);
 
   useEffect(() => {
-    const t = setInterval(() => setSlide((s) => (s + 1) % SLIDES.length), 5000);
-    return () => clearInterval(t);
+    apiFetch("/content")
+      .then(({ content }) => {
+        if (content.hero_slides && content.hero_slides.length > 0) setSlides(content.hero_slides);
+      })
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    const t = setInterval(() => setSlide((s) => (s + 1) % slides.length), 5000);
+    return () => clearInterval(t);
+  }, [slides.length]);
 
   return (
     <div>
@@ -20,7 +30,7 @@ export default function Landing({ onConnect, onOpenLegal, onOpenSupport }) {
 
       {/* Hero carousel */}
       <section style={styles.heroCarousel}>
-        {SLIDES.map((s, i) => (
+        {slides.map((s, i) => (
           <div
             key={i}
             style={{
@@ -40,7 +50,7 @@ export default function Landing({ onConnect, onOpenLegal, onOpenSupport }) {
           </div>
         ))}
         <div style={styles.slideDots}>
-          {SLIDES.map((_, i) => (
+          {slides.map((_, i) => (
             <button
               key={i}
               onClick={() => setSlide(i)}
@@ -87,7 +97,7 @@ export default function Landing({ onConnect, onOpenLegal, onOpenSupport }) {
       </section>
 
       {/* Partners / subsidiaries */}
-      <section style={styles.section}>
+      <section id="filiales" style={styles.section}>
         <h2 style={styles.sectionHead}>Les filiales avec lesquelles nous travaillons</h2>
         <div style={styles.partnerGrid}>
           {PARTNERS.map((p) => (
@@ -100,7 +110,7 @@ export default function Landing({ onConnect, onOpenLegal, onOpenSupport }) {
       </section>
 
       {/* Products preview */}
-      <section style={styles.section}>
+      <section id="catalogue" style={styles.section}>
         <h2 style={styles.sectionHead}>Un aperçu de nos produits</h2>
         <div style={styles.previewGrid}>
           {PRODUCTS.slice(0, 3).map((p) => (
