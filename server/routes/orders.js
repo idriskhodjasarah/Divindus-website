@@ -8,11 +8,10 @@ const { requireAuth } = require('../middleware/requireAuth');
 //
 // Two modes:
 //   1. Cart order:  { items: [{ id, qty }], ...customerDetails }
-//   2. Quote order: { quote_id, ...customerDetails }
+//   2. Quote order: { quote_id, quote_qty, ...customerDetails }
 //
 // In BOTH modes prices come from the database (products table, or the admin's
-// answer on the quote) — never from the browser, so nobody can pay 1 DA by
-// editing a request in DevTools.
+// answer on the quote) — never from the browser.
 // ---------------------------------------------------------------------------
 router.post('/', requireAuth, async (req, res) => {
   const { items, quote_id, quote_qty, entreprise, nif, contact, telephone, wilaya, adresse, paiement } = req.body;
@@ -61,7 +60,6 @@ router.post('/', requireAuth, async (req, res) => {
       const p = products.find((x) => x.id === item.id);
       const qty = parseInt(item.qty, 10);
 
-      // Unknown, inactive, or "sur devis" products can't be bought straight from a cart.
       if (!p || !p.active || p.price === null || !(qty > 0)) {
         return res.status(400).json({ error: 'Un article de la commande est invalide ou indisponible.' });
       }
@@ -97,6 +95,8 @@ router.post('/', requireAuth, async (req, res) => {
     await supabaseAdmin.from('quotes').update({ order_id: order.id }).eq('id', quote.id);
   }
 
+  await req.supabase.from('notifications').insert({ user_id: req.user.id, text: `Votre commande ${ref} a été confirmée.` });
+
   res.json({ order: { ...order, order_items: itemsPayload } });
 });
 
@@ -119,14 +119,8 @@ router.get('/', requireAuth, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /orders/:id — update status fields (received, cancelled, refund_status...)
-// RLS lets the owning customer OR an admin update it, nobody else.
-// ---------------------------------------------------------------------------
-// ---------------------------------------------------------------------------
 // POST /orders/seen — the customer opened "Mes commandes": mark their own
-// orders as seen. This is a narrow, single-purpose write, so it's safe to let
-// any logged-in user call it on their own orders (RLS already limits it to
-// their own row_id anyway).
+// orders as seen.
 // ---------------------------------------------------------------------------
 router.post('/seen', requireAuth, async (req, res) => {
   const { error } = await req.supabase.from('orders').update({ seen_by_client: true }).eq('user_id', req.user.id);
@@ -139,6 +133,11 @@ router.post('/seen', requireAuth, async (req, res) => {
   res.json({ success: true });
 });
 
+// ---------------------------------------------------------------------------
+// PATCH /orders/:id — update status fields (received, cancelled, refund_status...)
+// RLS lets the owning customer OR an admin update it, nobody else.
+// Also creates the matching customer-facing notification for each real event.
+// ---------------------------------------------------------------------------
 router.patch('/:id', requireAuth, async (req, res) => {
   // "remboursee" means the money has genuinely been sent back — only an admin
   // confirms that, never the customer's own browser.
@@ -159,6 +158,27 @@ router.patch('/:id', requireAuth, async (req, res) => {
   if (error) {
     console.error(error);
     return res.status(403).json({ error: 'Action non autorisée ou commande introuvable.' });
+  }
+
+  // Build the matching notification for whichever field actually changed.
+  // Admin-triggered changes (refund completed) use the admin client since
+  // the notification belongs to the CUSTOMER, not the admin making the call.
+  let notifText = null;
+  let notifClient = req.supabase;
+
+  if (req.body.received === true) {
+    notifText = `Réception de la commande ${data.ref} confirmée — merci d'avoir commandé chez DIVINDUS.`;
+  } else if (req.body.refund_status === 'remboursee') {
+    notifText = `Remboursement de la commande ${data.ref} effectué.`;
+    notifClient = supabaseAdmin;
+  } else if (req.body.refund_status === 'en_cours') {
+    notifText = `Demande d'annulation reçue pour la commande ${data.ref}. Remboursement sous 5 à 7 jours ouvrés.`;
+  } else if (req.body.cancelled === true && !req.body.refund_status) {
+    notifText = `Votre commande ${data.ref} a été annulée. Aucun paiement n'ayant encore été prélevé, aucun remboursement n'est nécessaire.`;
+  }
+
+  if (notifText) {
+    await notifClient.from('notifications').insert({ user_id: data.user_id, text: notifText });
   }
 
   res.json({ order: data });
