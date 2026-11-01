@@ -8,3 +8,4 @@ export { styles, globalCss, color } from "./styles/styles.js";
 export * from "./data/data.js";
 export { default as logo } from "./assets/logo.png";
 export { apiFetch, authHeader } from "./api.js";
+export { isValidPhone, isValidAddress, PHONE_ERROR, ADDRESS_ERROR } from "./validation.js";
