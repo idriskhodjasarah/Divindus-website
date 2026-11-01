@@ -155,10 +155,22 @@ router.post('/change-password', requireAuth, async (req, res) => {
     return res.status(400).json({ error: 'Mot de passe actuel incorrect.' });
   }
 
-  const { error } = await req.supabase.auth.updateUser({ password: newPassword });
+  // Same fix as /auth/reset-password: updateUser() doesn't pick up a token
+  // attached via global headers, so call the Auth API directly instead.
+  const response = await fetch(`${process.env.SUPABASE_URL}/auth/v1/user`, {
+    method: 'PUT',
+    headers: {
+      apikey: process.env.SUPABASE_KEY,
+      Authorization: `Bearer ${req.token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ password: newPassword }),
+  });
 
-  if (error) {
-    return res.status(400).json({ error: error.message });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    console.error('change-password failed:', response.status, body);
+    return res.status(400).json({ error: 'Impossible de mettre à jour le mot de passe.' });
   }
 
   res.json({ message: 'Mot de passe mis à jour.' });
@@ -173,9 +185,9 @@ router.post('/forgot-password', async (req, res) => {
   const { email } = req.body;
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: clientUrl,
-  });
+const { error } = await supabase.auth.resetPasswordForEmail(email, {
+  redirectTo: `${clientUrl}/reset-password`,
+});
 
   if (error) {
     return res.status(400).json({ error: error.message });
@@ -195,8 +207,7 @@ router.post('/forgot-password', async (req, res) => {
   const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: clientUrl,
-  });
+redirectTo: `${clientUrl}/reset-password`,  });
 
   if (error) {
     return res.status(400).json({ error: error.message });
